@@ -380,6 +380,9 @@ def export_to_csv(data, filename):
 # Import the quantum_assistant function
 from components.quantum_assistant import quantum_assistant
 
+# Import the update manager
+from components.update_manager import update_manager, render_update_ui
+
 # Page title and configuration
 st.set_page_config(
     page_title="W&B Experiment Dashboard",
@@ -497,6 +500,11 @@ def render_sidebar():
         
         if st.sidebar.button("View Subscription Plans", use_container_width=True):
             st.session_state.show_subscription_preview = True
+    
+    st.sidebar.divider()
+    
+    # Add update UI to sidebar
+    render_update_ui()
     
     st.sidebar.divider()
     st.sidebar.markdown("### About")
@@ -1334,6 +1342,9 @@ def main():
     
     # Verify logo integrity before displaying
     verify_logo_integrity()
+    
+    # Initialize update manager to check for updates
+    update_manager()
     
     # App header
     from PIL import Image
