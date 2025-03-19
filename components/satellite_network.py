@@ -47,7 +47,7 @@ def render_connection_status():
     
     # Add a refresh button
     if st.button("Refresh Connection Status", key=generate_unique_key("refresh_connection")):
-        st.experimental_rerun()
+        st.rerun()
     
     # Show current connection information
     with st.spinner("Getting connection info..."):
@@ -173,7 +173,7 @@ def render_hotspot_management():
                 
                 if success:
                     st.success("Hotspot stopped successfully")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error("Failed to stop hotspot")
     else:

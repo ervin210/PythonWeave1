@@ -19,6 +19,9 @@ from components.user_management import initialize_user_management, render_user_m
 # Import social authentication
 from components.social_auth import social_login_page, social_auth_callback_handler
 
+# Import network connector components
+from components.satellite_network import satellite_network
+
 # Define all utility functions directly in this file for now
 # This avoids circular import issues while we restructure the code
 
@@ -452,6 +455,10 @@ def render_sidebar():
         # Cross-Platform Connector button
         if st.sidebar.button("🌐 Cross-Platform Connector", use_container_width=True):
             st.session_state.current_page = "cross_platform_connector"
+            
+        # Satellite Network button
+        if st.sidebar.button("📡 Satellite Network", use_container_width=True):
+            st.session_state.current_page = "satellite_network"
             
         # Project management buttons
         if st.sidebar.button("📋 Projects", use_container_width=True):
@@ -1437,6 +1444,9 @@ def main():
         elif st.session_state.current_page == "cross_platform_connector":
             from components.cross_platform_connector import cross_platform_connector
             cross_platform_connector()
+        elif st.session_state.current_page == "satellite_network":
+            from components.satellite_network import satellite_network
+            satellite_network()
         elif st.session_state.current_page == "batch_operations":
             from components.batch_operations import batch_operations
             batch_operations()
