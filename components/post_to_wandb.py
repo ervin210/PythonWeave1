@@ -28,7 +28,7 @@ def post_to_wandb():
     
     # Get projects
     api = wandb.Api()
-    username = api.viewer()['entity']
+    username = api.viewer.entity
     
     # Post options tabs
     post_tab, subscription_tab, feature_tab = st.tabs([
