@@ -18,10 +18,13 @@ import threading
 # Version information - will be used to check for updates
 CURRENT_VERSION = "1.0.0"
 
-# For development/testing use a mock endpoint or handle gracefully
-# In production, these would point to your actual repository
-UPDATE_CHECK_URL = "https://example.com/api/check-updates"  # Mock URL for development
-DOWNLOAD_BASE_URL = "https://example.com/downloads"         # Mock URL for development
+# Update endpoints
+UPDATE_CHECK_URL = "https://api.github.com/repos/quantum-ai-assistant/releases/latest"
+DOWNLOAD_BASE_URL = "https://github.com/quantum-ai-assistant/releases/download"
+
+# Production fallback endpoints if GitHub is unavailable
+BACKUP_UPDATE_CHECK_URL = "https://quantum-ai-assistant.com/api/updates/check"
+BACKUP_DOWNLOAD_BASE_URL = "https://quantum-ai-assistant.com/downloads"
 
 # How often to check for updates (in seconds)
 UPDATE_CHECK_INTERVAL = 86400  # 24 hours
@@ -95,24 +98,38 @@ class AutoUpdater:
         self.last_checked = current_time
         
         try:
-            # Only for development - if using example.com, simulate no updates 
+            # For development or testing environments
             if "example.com" in UPDATE_CHECK_URL:
                 print("Development mode: Using mock update check")
                 self.update_available = False
                 self.latest_version = CURRENT_VERSION
-                # No need to make actual requests to example.com
                 return (self.update_available, self.latest_version, self.update_url, self.update_notes)
-                
+            
             # Create a user agent for the request
             headers = {
                 'User-Agent': f'QuantumAIAssistant/{CURRENT_VERSION}'
             }
-            request = Request(UPDATE_CHECK_URL, headers=headers)
             
-            # Fetch the latest release info
-            with urlopen(request, timeout=5) as response:
-                data = json.loads(response.read().decode('utf-8'))
+            # Try primary GitHub API endpoint first
+            data = None
+            try:
+                request = Request(UPDATE_CHECK_URL, headers=headers)
+                with urlopen(request, timeout=5) as response:
+                    data = json.loads(response.read().decode('utf-8'))
+            except Exception as e:
+                print(f"Primary update check failed: {e}")
+                # Try fallback endpoint
+                try:
+                    request = Request(BACKUP_UPDATE_CHECK_URL, headers=headers)
+                    with urlopen(request, timeout=5) as response:
+                        data = json.loads(response.read().decode('utf-8'))
+                except Exception as fallback_error:
+                    print(f"Fallback update check also failed: {fallback_error}")
+                    raise  # Re-raise to be caught by the outer exception handler
             
+            if not data:
+                raise ValueError("Failed to retrieve update data from any endpoint")
+                
             # Extract version (remove 'v' prefix if present)
             latest_version = data.get('tag_name', '').lstrip('v')
             
@@ -198,10 +215,41 @@ class AutoUpdater:
                 filename = os.path.basename(self.update_url)
                 download_path = os.path.join(temp_dir, filename)
                 
-                # Download the file
-                with urlopen(self.update_url) as response, open(download_path, 'wb') as out_file:
-                    data = response.read()
-                    out_file.write(data)
+                # Try to download the file, with fallback
+                download_success = False
+                download_errors = []
+                
+                # Try primary URL first
+                try:
+                    if callback:
+                        callback(f"Downloading from primary source...")
+                    with urlopen(self.update_url, timeout=30) as response, open(download_path, 'wb') as out_file:
+                        data = response.read()
+                        out_file.write(data)
+                    download_success = True
+                except Exception as e:
+                    download_errors.append(f"Primary download failed: {e}")
+                    
+                    # Try backup URL if primary fails
+                    if callback:
+                        callback(f"Primary download failed, trying backup source...")
+                    
+                    try:
+                        # Use BACKUP_DOWNLOAD_BASE_URL with the version and platform info
+                        backup_url = f"{BACKUP_DOWNLOAD_BASE_URL}/v{self.latest_version}/{filename}"
+                        with urlopen(backup_url, timeout=30) as response, open(download_path, 'wb') as out_file:
+                            data = response.read()
+                            out_file.write(data)
+                        download_success = True
+                    except Exception as backup_e:
+                        download_errors.append(f"Backup download failed: {backup_e}")
+                
+                # If both download attempts failed
+                if not download_success:
+                    error_msg = "\n".join(download_errors)
+                    if callback:
+                        callback(f"Failed to download update: {error_msg}")
+                    return False
                 
                 if callback:
                     callback("Download complete. Installing...")
@@ -216,9 +264,16 @@ class AutoUpdater:
                     success = result.returncode == 0
                 
                 elif self.platform_name == "windows" and filename.endswith('.exe'):
-                    # Run Windows installer
-                    os.startfile(download_path)  # This will start the installer
-                    success = True
+                    # Run Windows installer using subprocess
+                    try:
+                        if callback:
+                            callback("Starting Windows installer...")
+                        subprocess.Popen([download_path], shell=True)
+                        success = True
+                    except Exception as e:
+                        if callback:
+                            callback(f"Failed to start installer: {e}")
+                        success = False
                 
                 elif self.platform_name == "macos" and filename.endswith('.dmg'):
                     # Mount DMG and copy app to Applications

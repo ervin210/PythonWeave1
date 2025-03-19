@@ -15,9 +15,11 @@ import shutil
 import argparse
 from urllib.request import urlretrieve
 
-# The URL to the GitHub releases page where packages are stored
-# In a real implementation, this would point to actual release files
-RELEASE_BASE_URL = "https://github.com/quantum-ai-assistant/releases/download/v1.0.0"
+# The URL to the release pages where packages are stored
+# Primary GitHub releases URL
+GITHUB_RELEASE_BASE_URL = "https://github.com/quantum-ai-assistant/releases/download/v1.0.0"
+# Backup URL in case GitHub is inaccessible
+BACKUP_RELEASE_BASE_URL = "https://quantum-ai-assistant.com/downloads/v1.0.0"
 
 def get_platform_info():
     """Get information about the current platform"""
@@ -57,10 +59,8 @@ def download_package(platform_name, arch, extension, destination, use_python_pac
     # Determine the URL based on platform information
     if use_python_package:
         filename = "quantum_ai_assistant-1.0.0-py3-none-any.whl"
-        url = f"{RELEASE_BASE_URL}/{filename}"
     else:
         filename = f"QuantumAIAssistant-{platform_name}-{arch}{extension}"
-        url = f"{RELEASE_BASE_URL}/{filename}"
     
     # Create destination directory if it doesn't exist
     os.makedirs(destination, exist_ok=True)
@@ -68,20 +68,46 @@ def download_package(platform_name, arch, extension, destination, use_python_pac
     local_path = os.path.join(destination, filename)
     
     print(f"Downloading Quantum AI Assistant for {platform_name} {arch}...")
-    print(f"From: {url}")
-    print(f"To: {local_path}")
+    
+    # Try GitHub URL first
+    primary_url = f"{GITHUB_RELEASE_BASE_URL}/{filename}"
+    backup_url = f"{BACKUP_RELEASE_BASE_URL}/{filename}"
+    
+    print(f"Attempting download from: {primary_url}")
+    
+    # Progress indicator
+    def progress_callback(count, block_size, total_size):
+        percent = int(count * block_size * 100 / total_size)
+        filled = int(percent / 2)
+        bar = "█" * filled + "-" * (50 - filled)
+        sys.stdout.write(f"\rProgress: |{bar}| {percent}%")
+        sys.stdout.flush()
+    
+    # Try primary URL
+    download_success = False
     
     try:
-        # In a real implementation, this would download from the actual URL
-        # For this example, we'll create a placeholder file
-        with open(local_path, 'w') as f:
-            f.write("This is a placeholder for the Quantum AI Assistant package.\n")
-            f.write("In a real implementation, this would be the actual executable or package.\n")
-        
-        print(f"Downloaded successfully to {local_path}")
-        return local_path
+        urlretrieve(primary_url, local_path, progress_callback)
+        print(f"\nDownloaded successfully to {local_path}")
+        download_success = True
     except Exception as e:
-        print(f"Error downloading package: {e}")
+        print(f"\nPrimary download failed: {e}")
+        print(f"Attempting fallback download from: {backup_url}")
+        
+        # Try backup URL
+        try:
+            urlretrieve(backup_url, local_path, progress_callback)
+            print(f"\nDownloaded successfully to {local_path} (from backup source)")
+            download_success = True
+        except Exception as backup_e:
+            print(f"\nBackup download failed: {backup_e}")
+    
+    if download_success:
+        return local_path
+    else:
+        print("Could not download the package from any source.")
+        print("Please check your internet connection and try again.")
+        print("If the problem persists, please contact support.")
         sys.exit(1)
 
 def setup_package(package_path, platform_name, extension, install_dir):
@@ -122,7 +148,25 @@ def create_desktop_shortcut(target_path, platform_name):
     if platform_name == "windows":
         shortcut_path = os.path.join(desktop_path, "Quantum AI Assistant.lnk")
         print(f"Creating desktop shortcut at {shortcut_path}...")
-        print("In a real implementation, this would create a Windows shortcut.")
+        try:
+            # Try to import the winshell module for Windows shortcut creation
+            try:
+                import winshell
+                from win32com.client import Dispatch
+                
+                shortcut = Dispatch('WScript.Shell').CreateShortCut(shortcut_path)
+                shortcut.Targetpath = target_path
+                shortcut.WorkingDirectory = os.path.dirname(target_path)
+                shortcut.Description = "Quantum AI Assistant"
+                shortcut.save()
+                print(f"Shortcut created at {shortcut_path}")
+            except ImportError:
+                # Fall back to direct file creation if winshell is not available
+                with open(shortcut_path + ".bat", 'w') as f:
+                    f.write(f'@echo off\n"{target_path}"\n')
+                print(f"Batch file created at {shortcut_path}.bat")
+        except Exception as e:
+            print(f"Error creating Windows shortcut: {e}")
         
     elif platform_name == "macos":
         shortcut_path = os.path.join(desktop_path, "Quantum AI Assistant.command")
