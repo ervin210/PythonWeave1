@@ -4,13 +4,21 @@ import os
 import json
 import hashlib
 import uuid
-from datetime import datetime
+import ipaddress
+import socket
+from datetime import datetime, timedelta
+from utils.key_generator import generate_unique_key, generate_widget_key
 
 # Define the root admin emails (protected from changes)
 ROOT_ADMIN_EMAILS = [
     "ervin210@icloud.com",
     "radosavlevici.ervin@gmail.com"
 ]
+
+# Security settings
+MAX_LOGIN_ATTEMPTS = 5
+LOCKOUT_DURATION_MINUTES = 30
+SUSPICIOUS_ACTIVITY_THRESHOLD = 10
 
 # User roles and their permissions
 USER_ROLES = {
@@ -125,6 +133,21 @@ def initialize_user_management():
     
     if 'current_user' not in st.session_state:
         st.session_state.current_user = None
+        
+    # Initialize security tracking
+    if 'login_attempts' not in st.session_state:
+        st.session_state.login_attempts = {}
+        
+    if 'account_lockouts' not in st.session_state:
+        st.session_state.account_lockouts = {}
+        
+    if 'ip_blacklist' not in st.session_state:
+        # Load blacklist from file if exists
+        try:
+            with open('secure_assets/ip_blacklist.json', 'r') as f:
+                st.session_state.ip_blacklist = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            st.session_state.ip_blacklist = {}
 
 def save_user_database():
     """Save the user database to disk"""
@@ -148,8 +171,163 @@ def is_root_admin(email):
     """Check if an email is a root admin email"""
     return email in ROOT_ADMIN_EMAILS
 
+def get_client_ip():
+    """Get the client's IP address (simulated in this environment)"""
+    try:
+        return socket.gethostbyname(socket.gethostname())
+    except:
+        return "127.0.0.1"  # Fallback to localhost
+
+def track_login_attempt(email, success):
+    """Track login attempts for security purposes"""
+    ip_address = get_client_ip()
+    
+    # Initialize counters if needed
+    if email not in st.session_state.login_attempts:
+        st.session_state.login_attempts[email] = {
+            'attempts': 0,
+            'last_attempt': None,
+            'successful_logins': 0,
+            'failed_logins': 0,
+            'ip_addresses': set()
+        }
+    
+    # Update tracking information
+    current_time = datetime.now()
+    st.session_state.login_attempts[email]['attempts'] += 1
+    st.session_state.login_attempts[email]['last_attempt'] = current_time.isoformat()
+    st.session_state.login_attempts[email]['ip_addresses'].add(ip_address)
+    
+    if success:
+        st.session_state.login_attempts[email]['successful_logins'] += 1
+        # Reset failed login counter on successful login
+        st.session_state.login_attempts[email]['failed_logins'] = 0
+    else:
+        st.session_state.login_attempts[email]['failed_logins'] += 1
+    
+    # Check if account should be locked
+    if st.session_state.login_attempts[email]['failed_logins'] >= MAX_LOGIN_ATTEMPTS:
+        lock_account(email)
+        
+    # Check for suspicious activity
+    if is_suspicious_activity(email):
+        flag_suspicious_activity(email, ip_address)
+
+def is_account_locked(email):
+    """Check if an account is currently locked due to failed login attempts"""
+    if email in st.session_state.account_lockouts:
+        lockout_info = st.session_state.account_lockouts[email]
+        lockout_time = datetime.fromisoformat(lockout_info['lockout_time'])
+        lockout_duration = timedelta(minutes=LOCKOUT_DURATION_MINUTES)
+        
+        # Check if lockout period has expired
+        if datetime.now() - lockout_time < lockout_duration:
+            return True, lockout_info
+        else:
+            # Lockout period expired, remove the lockout
+            del st.session_state.account_lockouts[email]
+    
+    return False, None
+
+def lock_account(email):
+    """Lock an account due to too many failed login attempts"""
+    st.session_state.account_lockouts[email] = {
+        'lockout_time': datetime.now().isoformat(),
+        'reason': 'Too many failed login attempts',
+        'ip_address': get_client_ip()
+    }
+    
+    # Add security notification to the account
+    if email in st.session_state.user_db:
+        if 'security_notifications' not in st.session_state.user_db[email]:
+            st.session_state.user_db[email]['security_notifications'] = []
+        
+        st.session_state.user_db[email]['security_notifications'].append({
+            'type': 'account_lockout',
+            'timestamp': datetime.now().isoformat(),
+            'message': f"Account locked due to {MAX_LOGIN_ATTEMPTS} failed login attempts",
+            'ip_address': get_client_ip()
+        })
+        
+        save_user_database()
+
+def is_suspicious_activity(email):
+    """Check for suspicious account activity"""
+    if email not in st.session_state.login_attempts:
+        return False
+    
+    # Check number of failed attempts
+    if st.session_state.login_attempts[email]['failed_logins'] >= SUSPICIOUS_ACTIVITY_THRESHOLD:
+        return True
+    
+    # Check multiple IP addresses (more than 3 different IPs)
+    if len(st.session_state.login_attempts[email]['ip_addresses']) > 3:
+        return True
+    
+    return False
+
+def flag_suspicious_activity(email, ip_address):
+    """Flag an account for suspicious activity"""
+    # Add to blacklist if not already there
+    if ip_address not in st.session_state.ip_blacklist:
+        st.session_state.ip_blacklist[ip_address] = {
+            'timestamp': datetime.now().isoformat(),
+            'reason': f"Suspicious activity on account {email}",
+            'associated_email': email
+        }
+        
+        # Save blacklist to file
+        os.makedirs('secure_assets', exist_ok=True)
+        with open('secure_assets/ip_blacklist.json', 'w') as f:
+            # Convert set to list for JSON serialization
+            blacklist_copy = {}
+            for ip, data in st.session_state.ip_blacklist.items():
+                blacklist_copy[ip] = data
+            json.dump(blacklist_copy, f, indent=2)
+    
+    # Add security notification to the account
+    if email in st.session_state.user_db:
+        if 'security_notifications' not in st.session_state.user_db[email]:
+            st.session_state.user_db[email]['security_notifications'] = []
+        
+        st.session_state.user_db[email]['security_notifications'].append({
+            'type': 'suspicious_activity',
+            'timestamp': datetime.now().isoformat(),
+            'message': f"Suspicious activity detected from IP {ip_address}",
+            'ip_address': ip_address
+        })
+        
+        save_user_database()
+
+def is_ip_blacklisted(ip_address=None):
+    """Check if an IP address is blacklisted"""
+    if ip_address is None:
+        ip_address = get_client_ip()
+    
+    return ip_address in st.session_state.ip_blacklist
+
 def authenticate_user(email, password, oauth=False):
     """Authenticate a user with email and password or via OAuth"""
+    # Check if the client IP is blacklisted
+    ip_address = get_client_ip()
+    if is_ip_blacklisted(ip_address):
+        return False, "Access denied: Your IP address has been blacklisted due to suspicious activity."
+    
+    # Check if account is locked
+    is_locked, lockout_info = is_account_locked(email)
+    if is_locked:
+        lockout_time = datetime.fromisoformat(lockout_info['lockout_time'])
+        unlock_time = lockout_time + timedelta(minutes=LOCKOUT_DURATION_MINUTES)
+        time_remaining = unlock_time - datetime.now()
+        minutes_remaining = max(1, int(time_remaining.total_seconds() / 60))
+        
+        return False, f"Account is temporarily locked due to too many failed login attempts. Try again in {minutes_remaining} minutes."
+    
+    # OAuth logins don't count towards login attempts
+    if not oauth:
+        # Track the login attempt (we'll update the success status later)
+        track_login_attempt(email, False)
+    
     # Check if the user exists
     if email in st.session_state.user_db:
         user = st.session_state.user_db[email]
@@ -166,6 +344,10 @@ def authenticate_user(email, password, oauth=False):
             # Set authentication state
             st.session_state.user_authenticated = True
             st.session_state.current_user = email
+            
+            # Update login tracking for successful login
+            if not oauth:
+                track_login_attempt(email, True)
             
             # Save updates
             save_user_database()
@@ -512,8 +694,8 @@ def render_user_management():
     if has_permission('manage_users'):
         st.subheader("User Management")
         
-        # Tabs for user management actions
-        user_list_tab, create_user_tab, edit_users_tab = st.tabs(["User List", "Create User", "Edit Users"])
+        # Tabs for user management actions including security dashboard
+        user_list_tab, create_user_tab, edit_users_tab, security_tab = st.tabs(["User List", "Create User", "Edit Users", "Security Dashboard"])
         
         with user_list_tab:
             # Display user list
@@ -660,3 +842,208 @@ def render_user_management():
                     st.error("You don't have permission to edit this user")
                     for restriction in edit_restrictions:
                         st.info(restriction)
+        
+        with security_tab:
+            st.subheader("Security Dashboard")
+            
+            security_subtabs = st.tabs(["Login Attempts", "Account Lockouts", "IP Blacklist", "Security Notifications"])
+            
+            with security_subtabs[0]:  # Login Attempts
+                st.markdown("### Login Attempts Tracking")
+                
+                if st.session_state.login_attempts:
+                    login_data = []
+                    for email, data in st.session_state.login_attempts.items():
+                        ip_count = len(data.get('ip_addresses', set()))
+                        login_data.append({
+                            "Email": email,
+                            "Total Attempts": data.get('attempts', 0),
+                            "Successful Logins": data.get('successful_logins', 0),
+                            "Failed Logins": data.get('failed_logins', 0),
+                            "IP Addresses": ip_count,
+                            "Last Attempt": data.get('last_attempt', 'Never')
+                        })
+                    
+                    login_df = pd.DataFrame(login_data)
+                    st.dataframe(login_df, use_container_width=True)
+                    
+                    # Clear login attempts button
+                    if st.button("Clear Login Attempts Data", key="clear_login_attempts"):
+                        st.session_state.login_attempts = {}
+                        st.success("Login attempts data cleared")
+                        st.rerun()
+                else:
+                    st.info("No login attempts recorded")
+            
+            with security_subtabs[1]:  # Account Lockouts
+                st.markdown("### Account Lockouts")
+                
+                if st.session_state.account_lockouts:
+                    lockout_data = []
+                    current_time = datetime.now()
+                    
+                    for email, data in st.session_state.account_lockouts.items():
+                        lockout_time = datetime.fromisoformat(data.get('lockout_time', current_time.isoformat()))
+                        unlock_time = lockout_time + timedelta(minutes=LOCKOUT_DURATION_MINUTES)
+                        time_remaining = max(0, (unlock_time - current_time).total_seconds() / 60)
+                        
+                        lockout_data.append({
+                            "Email": email,
+                            "Lockout Time": lockout_time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "Minutes Remaining": round(time_remaining, 1),
+                            "Reason": data.get('reason', 'Unknown'),
+                            "IP Address": data.get('ip_address', 'Unknown')
+                        })
+                    
+                    lockout_df = pd.DataFrame(lockout_data)
+                    st.dataframe(lockout_df, use_container_width=True)
+                    
+                    # Unlock accounts button
+                    selected_account = st.selectbox("Select account to unlock", 
+                                                   [row["Email"] for row in lockout_data],
+                                                   key="unlock_account_select")
+                    
+                    if st.button("Unlock Selected Account", key="unlock_account"):
+                        if selected_account in st.session_state.account_lockouts:
+                            del st.session_state.account_lockouts[selected_account]
+                            
+                            # Reset failed login counters for this account
+                            if selected_account in st.session_state.login_attempts:
+                                st.session_state.login_attempts[selected_account]['failed_logins'] = 0
+                            
+                            st.success(f"Account {selected_account} unlocked successfully")
+                            st.rerun()
+                else:
+                    st.info("No accounts are currently locked")
+            
+            with security_subtabs[2]:  # IP Blacklist
+                st.markdown("### IP Blacklist Management")
+                
+                if st.session_state.ip_blacklist:
+                    blacklist_data = []
+                    
+                    for ip, data in st.session_state.ip_blacklist.items():
+                        blacklist_time = datetime.fromisoformat(data.get('timestamp', datetime.now().isoformat()))
+                        
+                        blacklist_data.append({
+                            "IP Address": ip,
+                            "Blacklisted On": blacklist_time.strftime("%Y-%m-%d %H:%M:%S"),
+                            "Reason": data.get('reason', 'Unknown'),
+                            "Associated Email": data.get('associated_email', 'Unknown')
+                        })
+                    
+                    blacklist_df = pd.DataFrame(blacklist_data)
+                    st.dataframe(blacklist_df, use_container_width=True)
+                    
+                    # Remove from blacklist
+                    selected_ip = st.selectbox("Select IP to remove from blacklist", 
+                                              [row["IP Address"] for row in blacklist_data],
+                                              key="remove_ip_select")
+                    
+                    if st.button("Remove IP from Blacklist", key="remove_ip"):
+                        if selected_ip in st.session_state.ip_blacklist:
+                            del st.session_state.ip_blacklist[selected_ip]
+                            
+                            # Save blacklist to file
+                            os.makedirs('secure_assets', exist_ok=True)
+                            with open('secure_assets/ip_blacklist.json', 'w') as f:
+                                json.dump(st.session_state.ip_blacklist, f, indent=2)
+                            
+                            st.success(f"IP address {selected_ip} removed from blacklist")
+                            st.rerun()
+                    
+                    # Add manual blacklist entry
+                    st.markdown("### Add IP to Blacklist")
+                    with st.form("add_to_blacklist_form"):
+                        new_ip = st.text_input("IP Address")
+                        reason = st.text_input("Reason")
+                        associated_email = st.text_input("Associated Email (optional)")
+                        
+                        submitted = st.form_submit_button("Add to Blacklist")
+                        
+                        if submitted:
+                            try:
+                                # Validate IP address
+                                ipaddress.ip_address(new_ip)
+                                
+                                # Add to blacklist
+                                st.session_state.ip_blacklist[new_ip] = {
+                                    'timestamp': datetime.now().isoformat(),
+                                    'reason': reason or "Manually blacklisted",
+                                    'associated_email': associated_email or "N/A"
+                                }
+                                
+                                # Save blacklist to file
+                                os.makedirs('secure_assets', exist_ok=True)
+                                with open('secure_assets/ip_blacklist.json', 'w') as f:
+                                    json.dump(st.session_state.ip_blacklist, f, indent=2)
+                                
+                                st.success(f"IP address {new_ip} added to blacklist")
+                                st.rerun()
+                            except ValueError:
+                                st.error("Invalid IP address format")
+                else:
+                    st.info("IP blacklist is empty")
+                    
+                    # Add manual blacklist entry
+                    st.markdown("### Add IP to Blacklist")
+                    with st.form("add_to_blacklist_form"):
+                        new_ip = st.text_input("IP Address")
+                        reason = st.text_input("Reason")
+                        associated_email = st.text_input("Associated Email (optional)")
+                        
+                        submitted = st.form_submit_button("Add to Blacklist")
+                        
+                        if submitted:
+                            try:
+                                # Validate IP address
+                                ipaddress.ip_address(new_ip)
+                                
+                                # Add to blacklist
+                                st.session_state.ip_blacklist[new_ip] = {
+                                    'timestamp': datetime.now().isoformat(),
+                                    'reason': reason or "Manually blacklisted",
+                                    'associated_email': associated_email or "N/A"
+                                }
+                                
+                                # Save blacklist to file
+                                os.makedirs('secure_assets', exist_ok=True)
+                                with open('secure_assets/ip_blacklist.json', 'w') as f:
+                                    json.dump(st.session_state.ip_blacklist, f, indent=2)
+                                
+                                st.success(f"IP address {new_ip} added to blacklist")
+                                st.rerun()
+                            except ValueError:
+                                st.error("Invalid IP address format")
+            
+            with security_subtabs[3]:  # Security Notifications
+                st.markdown("### Security Notifications")
+                
+                # Collect all security notifications
+                notifications = []
+                for email, user in st.session_state.user_db.items():
+                    if 'security_notifications' in user:
+                        for notification in user['security_notifications']:
+                            notifications.append({
+                                "Email": email,
+                                "Type": notification.get('type', 'Unknown'),
+                                "Timestamp": notification.get('timestamp', 'Unknown'),
+                                "Message": notification.get('message', 'No details'),
+                                "IP Address": notification.get('ip_address', 'Unknown')
+                            })
+                
+                if notifications:
+                    notifications_df = pd.DataFrame(notifications)
+                    st.dataframe(notifications_df, use_container_width=True)
+                    
+                    # Clear notifications button
+                    if st.button("Clear All Security Notifications", key="clear_notifications"):
+                        for email in st.session_state.user_db:
+                            if 'security_notifications' in st.session_state.user_db[email]:
+                                st.session_state.user_db[email]['security_notifications'] = []
+                        
+                        save_user_database()
+                        st.success("All security notifications cleared")
+                        st.rerun()
+                else:
+                    st.info("No security notifications")
