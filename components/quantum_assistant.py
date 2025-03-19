@@ -18,7 +18,19 @@ def quantum_assistant():
     """
     Quantum Computing AI Assistant for W&B experiment analysis
     """
-    st.subheader("🧠 Quantum AI Assistant")
+    # Display logo and title in a row
+    col1, col2 = st.columns([1, 3])
+    
+    with col1:
+        try:
+            logo = Image.open("assets/quantum_logo.jpg")
+            st.image(logo, width=150)
+        except FileNotFoundError:
+            st.info("Logo not found. Please add a logo file at assets/quantum_logo.jpg")
+    
+    with col2:
+        st.title("Quantum AI Assistant")
+        st.markdown("*Powered by quantum computing and machine learning*")
     
     # Introduction section
     st.markdown("""
@@ -1174,14 +1186,26 @@ def render_ai_insights():
     """
     Renders AI-powered insights for W&B experiments
     """
-    st.subheader("AI Insights for Your Experiments")
+    # Header with logo and title
+    col1, col2 = st.columns([1, 5])
+    
+    with col1:
+        try:
+            logo = Image.open("assets/quantum_logo.jpg")
+            st.image(logo, width=80)
+        except FileNotFoundError:
+            pass
+    
+    with col2:
+        st.header("AI Insights for Your Experiments")
     
     if not st.session_state.authenticated:
         st.warning("Please log in with your W&B API key to access AI insights for your experiments.")
         return
     
     st.markdown("""
-    Get AI-powered insights about your machine learning experiments.
+    Get AI-powered insights about your machine learning experiments using
+    quantum computing techniques and advanced analytics.
     Select a project and run to analyze.
     """)
     
