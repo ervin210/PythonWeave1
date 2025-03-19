@@ -1,0 +1,2 @@
+This is a placeholder for the Windows installer package.
+In the real application, this would be an actual installer.
