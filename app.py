@@ -22,6 +22,9 @@ from components.social_auth import social_login_page, social_auth_callback_handl
 # Import network connector components
 from components.satellite_network import satellite_network
 
+# Import artifact registry
+from components.artifact_registry import artifact_registry
+
 # Define all utility functions directly in this file for now
 # This avoids circular import issues while we restructure the code
 
@@ -447,6 +450,10 @@ def render_sidebar():
         # Post to W&B button
         if st.sidebar.button("📤 Post to W&B", use_container_width=True):
             st.session_state.current_page = "post_to_wandb"
+            
+        # W&B Artifact Registry button
+        if st.sidebar.button("📦 W&B Artifact Registry", use_container_width=True):
+            st.session_state.current_page = "artifact_registry"
             
         # Integration Hub button
         if st.sidebar.button("🔌 Integration Hub", use_container_width=True):
@@ -1447,6 +1454,9 @@ def main():
         elif st.session_state.current_page == "satellite_network":
             from components.satellite_network import satellite_network
             satellite_network()
+        elif st.session_state.current_page == "artifact_registry":
+            from components.artifact_registry import artifact_registry
+            artifact_registry()
         elif st.session_state.current_page == "batch_operations":
             from components.batch_operations import batch_operations
             batch_operations()
