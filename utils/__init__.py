@@ -1,7 +1,19 @@
 # Make the utils directory a proper package
 
-# Don't import from utils.py to avoid circular imports
-# Just define the exports that modules can import from utils package
+# Import core utilities from utils.py
+from utils import (
+    initialize_session_state,
+    authenticate_wandb,
+    logout_wandb,
+    get_projects,
+    get_runs,
+    get_run_details,
+    download_run_artifact,
+    get_sweeps,
+    get_sweep_details,
+    find_best_run,
+    export_to_csv
+)
 
 # Import visualization functions directly
 from utils.visualization import (
@@ -19,8 +31,19 @@ from utils.wandb_api import (
     get_best_runs_from_sweep
 )
 
-# Export visualization functions
+# Export everything
 __all__ = [
+    'initialize_session_state',
+    'authenticate_wandb',
+    'logout_wandb',
+    'get_projects',
+    'get_runs',
+    'get_run_details',
+    'download_run_artifact',
+    'get_sweeps',
+    'get_sweep_details',
+    'find_best_run',
+    'export_to_csv',
     'plot_metrics_history',
     'create_parallel_coordinates_plot',
     'create_metric_comparison_plot',

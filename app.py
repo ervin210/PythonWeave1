@@ -3,23 +3,25 @@ import wandb
 import os
 import sys
 
-# Import utility functions directly 
+# Add parent directory to path to enable direct imports
+sys.path.append(".")
+
+# Import utility functions
 from utils import initialize_session_state
 
-# Import components directly
-from components import (
-    quantum_assistant,
-    artifact_manager,
-    authenticate_wandb, 
-    data_export,
-    project_explorer,
-    run_details,
-    sweep_analyzer
-)
+# Import quantum assistant directly
+from components.quantum_assistant import quantum_assistant
 
-# Import components functions directly from components.py
-sys.path.append(".")
-import components as comp
+# Import functions from components.py
+from components import (
+    render_sidebar, 
+    render_auth_page, 
+    render_projects_page,
+    render_runs_page, 
+    render_run_details_page,
+    render_sweeps_page, 
+    render_sweep_details_page
+)
 
 # Page title and configuration
 st.set_page_config(
