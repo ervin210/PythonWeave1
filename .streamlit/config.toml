@@ -3,3 +3,7 @@ headless = true
 port = 5000
 address = "0.0.0.0"
 
+[browser]
+serverAddress = "0.0.0.0"
+gatherUsageStats = false
+
