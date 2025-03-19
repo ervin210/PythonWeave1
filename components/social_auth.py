@@ -8,7 +8,7 @@ from authlib.integrations.requests_client import OAuth2Session
 import hashlib
 import base64
 from datetime import datetime, timedelta
-from utils.key_generator import generate_unique_key, generate_button_key
+from utils.key_generator import generate_unique_key, generate_button_key, generate_widget_key
 
 class SocialAuth:
     """Handle social authentication with various providers"""
@@ -248,7 +248,8 @@ class SocialAuth:
         selected_provider = st.selectbox(
             "Select Provider",
             list(self.providers.keys()),
-            format_func=lambda x: self.providers[x]["name"]
+            format_func=lambda x: self.providers[x]["name"],
+            key=generate_widget_key("selectbox", "oauth_provider")
         )
         
         with st.form(f"oauth_config_{selected_provider}"):
@@ -261,7 +262,8 @@ class SocialAuth:
             client_id = st.text_input(
                 f"{provider_name} Client ID",
                 value=current_config.get("client_id", ""),
-                type="default"
+                type="default",
+                key=generate_widget_key("text_input", f"{selected_provider}_client_id")
             )
             
             client_secret = st.text_input(
