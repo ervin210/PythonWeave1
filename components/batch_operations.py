@@ -9,6 +9,13 @@ import json
 import os
 import io
 import zipfile
+import time
+import base64
+import hashlib
+import glob
+import re
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
 
 def batch_operations():
     """
