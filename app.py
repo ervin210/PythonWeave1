@@ -369,6 +369,11 @@ def render_sidebar():
                 st.session_state.selected_run = None
                 st.session_state.selected_sweep = None
             
+            if st.sidebar.button(f"🔄 Batch Operations", use_container_width=True):
+                st.session_state.current_page = "batch_operations"
+                st.session_state.selected_run = None
+                st.session_state.selected_sweep = None
+            
             if st.sidebar.button(f"🧹 Sweeps in {project_id}", use_container_width=True):
                 st.session_state.current_page = "sweeps"
                 st.session_state.selected_run = None
@@ -1199,6 +1204,9 @@ def main():
         elif st.session_state.current_page == "integration_hub":
             from components.integration_hub import integration_hub
             integration_hub()
+        elif st.session_state.current_page == "batch_operations":
+            from components.batch_operations import batch_operations
+            batch_operations()
         elif st.session_state.current_page == "projects":
             render_projects_page()
         elif st.session_state.current_page == "runs":
