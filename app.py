@@ -2,15 +2,10 @@ import streamlit as st
 import wandb
 import os
 import sys
-from components import (
-    render_sidebar,
-    render_auth_page,
-    render_projects_page,
-    render_runs_page,
-    render_run_details_page,
-    render_sweeps_page,
-    render_sweep_details_page
-)
+# Import components functions
+from components import render_sidebar, render_auth_page, render_projects_page
+from components import render_runs_page, render_run_details_page
+from components import render_sweeps_page, render_sweep_details_page
 from utils import initialize_session_state
 
 # Import quantum assistant functionality
