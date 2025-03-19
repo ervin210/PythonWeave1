@@ -23,4 +23,5 @@ dependencies = [
     "authlib>=1.5.1",
     "requests>=2.32.3",
     "setuptools>=76.1.0",
+    "twilio>=9.5.0",
 ]

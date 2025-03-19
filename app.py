@@ -503,6 +503,19 @@ def render_download_page():
     - ✅ **Full Feature Set**: Access all enterprise features
     """)
     
+    # Installation troubleshooting information
+    st.warning("""
+    ### Installation Issues?
+    
+    If you encounter any errors during installation, please contact our publisher directly:
+    
+    **Email**: support@quantum-ai-assistant.com  
+    **Phone**: +1 (555) 123-4567  
+    **Support Hours**: Monday-Friday, 9am-5pm EST
+    
+    Please include your system specifications and the error message you received when contacting support.
+    """)
+    
     # Status section to show version verification
     st.info("All downloads are verified with the publisher to ensure you get the latest, secure version.", icon="ℹ️")
     
@@ -543,8 +556,18 @@ def render_download_page():
                             mime="application/octet-stream",
                             key="win_dl_actual"
                         )
+                        
+                        # Add installation troubleshooting information
+                        st.info("""
+                        **Installation Tips:**
+                        1. Run the installer as administrator
+                        2. Temporarily disable antivirus during installation
+                        3. Make sure your Windows is up to date
+                        
+                        If you see an error message saying "This app can't install", please contact the publisher immediately at support@quantum-ai-assistant.com
+                        """)
                 else:
-                    st.error("Download verification failed. Please try again later.")
+                    st.error("Download verification failed. Please contact the publisher for assistance.")
     
     with col2:
         st.markdown("### macOS")
@@ -579,8 +602,18 @@ def render_download_page():
                             mime="application/octet-stream",
                             key="mac_dl_actual"
                         )
+                        
+                        # Add installation troubleshooting information
+                        st.info("""
+                        **Installation Tips:**
+                        1. If your Mac blocks the app, go to System Preferences > Security & Privacy
+                        2. Make sure you have administrator privileges
+                        3. Check your macOS version is 11 (Big Sur) or newer
+                        
+                        If you see an error message saying "This app can't install", please contact the publisher immediately at support@quantum-ai-assistant.com
+                        """)
                 else:
-                    st.error("Download verification failed. Please try again later.")
+                    st.error("Download verification failed. Please contact the publisher for assistance.")
     
     with col3:
         st.markdown("### Linux")
@@ -615,8 +648,18 @@ def render_download_page():
                             mime="application/octet-stream",
                             key="linux_dl_actual"
                         )
+                        
+                        # Add installation troubleshooting information
+                        st.info("""
+                        **Installation Tips:**
+                        1. Make sure you have sufficient permissions (use sudo)
+                        2. Install missing dependencies with `sudo apt-get install -f`
+                        3. Verify system compatibility with your distribution
+                        
+                        If you see an error message saying "This app can't install", please contact the publisher immediately at support@quantum-ai-assistant.com
+                        """)
                 else:
-                    st.error("Download verification failed. Please try again later.")
+                    st.error("Download verification failed. Please contact the publisher for assistance.")
     
     # Installation instructions
     st.subheader("Installation Instructions")

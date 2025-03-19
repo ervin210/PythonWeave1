@@ -1,0 +1,11 @@
+Quantum AI Assistant for Windows
+Version: 1.2.3
+Release Date: 2025-03-19
+Verified: Yes
+Size: 245 MB
+Minimum OS: Windows 10
+
+Notes: Latest stable release with quantum security enhancements
+
+This is a placeholder for the installer package.
+In production, this would download the actual installer from our servers.
