@@ -8,6 +8,7 @@ from authlib.integrations.requests_client import OAuth2Session
 import hashlib
 import base64
 from datetime import datetime, timedelta
+from utils.key_generator import generate_unique_key, generate_button_key
 
 class SocialAuth:
     """Handle social authentication with various providers"""
@@ -325,11 +326,8 @@ class SocialAuth:
             config = self.providers[provider]
             col = cols[i % len(cols)]
             
-            # Generate unique key with a timestamp and random component
-            import random
-            import time
-            unique_id = f"{int(time.time())}{random.randint(1000, 9999)}"
-            btn_key = f"social_login_{provider}_{unique_id}"
+            # Generate a unique button key using our utility function
+            btn_key = generate_button_key(f"social_login_{provider}")
             
             with col:
                 if col.button(
@@ -369,11 +367,9 @@ def social_login_page():
     
     if st.session_state.get("user_authenticated", False):
         st.success("You're already logged in!")
-        # Use unique key for this button too
-        import random
-        import time
-        unique_id = f"{int(time.time())}{random.randint(1000, 9999)}"
-        if st.button("Continue to Dashboard", key=f"continue_dashboard_{unique_id}"):
+        # Use the utility function for unique key generation
+        btn_key = generate_button_key("continue_dashboard")
+        if st.button("Continue to Dashboard", key=btn_key):
             st.rerun()
 
 def social_auth_callback_handler():
