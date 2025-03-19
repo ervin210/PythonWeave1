@@ -79,7 +79,7 @@ def cross_platform_connector():
             import subprocess
             import time
             
-            # Create a sample ZIP file with contents representing the application
+            # Create a real application package with functional code
             def create_application_package(os_type):
                 # Create an in-memory zip file
                 zip_buffer = io.BytesIO()
@@ -90,24 +90,301 @@ def cross_platform_connector():
                                               f'This package contains the Quantum AI Assistant application for {os_type}.\n'
                                               f'Installation instructions are in INSTALL.txt.\n')
                     
-                    # Add an installation guide
+                    # Add a detailed installation guide
                     zipf.writestr('INSTALL.txt', f'Installation Instructions for {os_type}\n'
                                                f'================================\n\n'
                                                f'1. Extract all files to a directory of your choice.\n'
-                                               f'2. Run the setup script appropriate for your system.\n'
-                                               f'3. Follow the on-screen instructions.\n')
+                                               f'2. Make sure you have Python 3.8+ installed on your system.\n'
+                                               f'3. Install required packages: pip install -r requirements.txt\n'
+                                               f'4. Run the application: python quantum_assistant_app.py\n\n'
+                                               f'For {os_type} users:\n'
+                                               f'- You can also use the provided setup script which will handle all dependencies.\n')
+                    
+                    # Add requirements file
+                    zipf.writestr('requirements.txt', 
+                        'streamlit>=1.24.0\n'
+                        'numpy>=1.22.0\n'
+                        'pandas>=1.5.0\n'
+                        'matplotlib>=3.5.0\n'
+                        'qiskit>=0.43.0\n'
+                        'qiskit-aer>=0.12.0\n'
+                        'pennylane>=0.30.0\n'
+                        'plotly>=5.14.0\n'
+                        'wandb>=0.15.0\n'
+                    )
                     
                     # Add a setup script based on OS
                     if os_type.lower() == 'windows':
-                        zipf.writestr('setup.bat', '@echo off\necho Installing Quantum AI Assistant for Windows...\necho This is a simulation.\necho Installation complete!\npause\n')
-                    elif os_type.lower() in ['macos', 'linux']:
-                        zipf.writestr('setup.sh', '#!/bin/bash\necho "Installing Quantum AI Assistant for Linux/macOS..."\necho "This is a simulation."\necho "Installation complete!"\nread -p "Press Enter to continue..."\n')
+                        zipf.writestr('setup.bat', 
+                            '@echo off\n'
+                            'echo Installing Quantum AI Assistant for Windows...\n'
+                            'echo.\n'
+                            'echo Checking for Python...\n'
+                            'python --version > nul 2>&1\n'
+                            'if %errorlevel% neq 0 (\n'
+                            '    echo Python not found! Please install Python 3.8 or newer.\n'
+                            '    echo Visit https://www.python.org/downloads/\n'
+                            '    pause\n'
+                            '    exit /b 1\n'
+                            ')\n'
+                            'echo Python found!\n'
+                            'echo.\n'
+                            'echo Installing dependencies...\n'
+                            'pip install -r requirements.txt\n'
+                            'if %errorlevel% neq 0 (\n'
+                            '    echo Failed to install dependencies.\n'
+                            '    pause\n'
+                            '    exit /b 1\n'
+                            ')\n'
+                            'echo.\n'
+                            'echo Creating desktop shortcut...\n'
+                            'echo Set oWS = WScript.CreateObject("WScript.Shell") > createshortcut.vbs\n'
+                            'echo sLinkFile = oWS.SpecialFolders("Desktop") ^& "\\Quantum AI Assistant.lnk" >> createshortcut.vbs\n'
+                            'echo Set oLink = oWS.CreateShortcut(sLinkFile) >> createshortcut.vbs\n'
+                            'echo oLink.TargetPath = "cmd.exe" >> createshortcut.vbs\n'
+                            'echo oLink.Arguments = "/c python quantum_assistant_app.py" >> createshortcut.vbs\n'
+                            'echo oLink.Description = "Quantum AI Assistant" >> createshortcut.vbs\n'
+                            'echo oLink.IconLocation = "python.exe, 0" >> createshortcut.vbs\n'
+                            'echo oLink.WorkingDirectory = "%cd%" >> createshortcut.vbs\n'
+                            'echo oLink.Save >> createshortcut.vbs\n'
+                            'cscript //nologo createshortcut.vbs\n'
+                            'del createshortcut.vbs\n'
+                            'echo.\n'
+                            'echo Installation complete!\n'
+                            'echo To run the application, double-click the desktop shortcut or run:\n'
+                            'echo     python quantum_assistant_app.py\n'
+                            'echo.\n'
+                            'pause\n'
+                        )
+                    elif os_type.lower() == 'macos':
+                        zipf.writestr('setup.sh', 
+                            '#!/bin/bash\n'
+                            'echo "Installing Quantum AI Assistant for macOS..."\n'
+                            'echo\n'
+                            'echo "Checking for Python..."\n'
+                            'if ! command -v python3 &> /dev/null; then\n'
+                            '    echo "Python not found! Please install Python 3.8 or newer."\n'
+                            '    echo "Visit https://www.python.org/downloads/"\n'
+                            '    read -p "Press Enter to exit..."\n'
+                            '    exit 1\n'
+                            'fi\n'
+                            'echo "Python found!"\n'
+                            'echo\n'
+                            'echo "Installing dependencies..."\n'
+                            'python3 -m pip install -r requirements.txt\n'
+                            'if [ $? -ne 0 ]; then\n'
+                            '    echo "Failed to install dependencies."\n'
+                            '    read -p "Press Enter to exit..."\n'
+                            '    exit 1\n'
+                            'fi\n'
+                            'echo\n'
+                            'echo "Creating Applications folder entry..."\n'
+                            'mkdir -p ~/Applications/QuantumAIAssistant\n'
+                            'cp -r * ~/Applications/QuantumAIAssistant/\n'
+                            'cat > ~/Applications/QuantumAIAssistant/run.command << EOL\n'
+                            '#!/bin/bash\n'
+                            'cd "\$(dirname "\$0")"\n'
+                            'python3 quantum_assistant_app.py\n'
+                            'EOL\n'
+                            'chmod +x ~/Applications/QuantumAIAssistant/run.command\n'
+                            'echo\n'
+                            'echo "Installation complete!"\n'
+                            'echo "To run the application, open the QuantumAIAssistant folder in your Applications folder"\n'
+                            'echo "and double-click run.command, or run:"\n'
+                            'echo "    python3 quantum_assistant_app.py"\n'
+                            'echo\n'
+                            'read -p "Press Enter to continue..."\n'
+                        )
+                    elif os_type.lower() == 'linux':
+                        zipf.writestr('setup.sh', 
+                            '#!/bin/bash\n'
+                            'echo "Installing Quantum AI Assistant for Linux..."\n'
+                            'echo\n'
+                            'echo "Checking for Python..."\n'
+                            'if ! command -v python3 &> /dev/null; then\n'
+                            '    echo "Python not found! Please install Python 3.8 or newer."\n'
+                            '    echo "Try: sudo apt-get install python3 python3-pip"\n'
+                            '    read -p "Press Enter to exit..."\n'
+                            '    exit 1\n'
+                            'fi\n'
+                            'echo "Python found!"\n'
+                            'echo\n'
+                            'echo "Installing dependencies..."\n'
+                            'python3 -m pip install -r requirements.txt\n'
+                            'if [ $? -ne 0 ]; then\n'
+                            '    echo "Failed to install dependencies."\n'
+                            '    read -p "Press Enter to exit..."\n'
+                            '    exit 1\n'
+                            'fi\n'
+                            'echo\n'
+                            'echo "Creating desktop entry..."\n'
+                            'mkdir -p ~/.local/share/applications\n'
+                            'INSTALL_DIR="$HOME/.local/bin/quantum-assistant"\n'
+                            'mkdir -p "$INSTALL_DIR"\n'
+                            'cp -r * "$INSTALL_DIR/"\n'
+                            'cat > ~/.local/share/applications/quantum-assistant.desktop << EOL\n'
+                            '[Desktop Entry]\n'
+                            'Name=Quantum AI Assistant\n'
+                            'Exec=python3 $INSTALL_DIR/quantum_assistant_app.py\n'
+                            'Terminal=false\n'
+                            'Type=Application\n'
+                            'Categories=Science;Education;\n'
+                            'Comment=Quantum AI Assistant for W&B experiment management\n'
+                            'EOL\n'
+                            'chmod +x ~/.local/share/applications/quantum-assistant.desktop\n'
+                            'echo\n'
+                            'echo "Installation complete!"\n'
+                            'echo "To run the application, find Quantum AI Assistant in your applications menu,"\n'
+                            'echo "or run:"\n'
+                            'echo "    python3 $INSTALL_DIR/quantum_assistant_app.py"\n'
+                            'echo\n'
+                            'read -p "Press Enter to continue..."\n'
+                        )
                     
-                    # Add a sample configuration file
-                    zipf.writestr('config.json', '{\n  "version": "1.0.0",\n  "use_gpu": true,\n  "auto_update": true,\n  "data_dir": "./data",\n  "log_level": "info"\n}')
+                    # Add a configuration file
+                    zipf.writestr('config.json', '{\n'
+                        '  "version": "1.0.0",\n'
+                        '  "use_gpu": true,\n'
+                        '  "auto_update": true,\n'
+                        '  "data_dir": "./data",\n'
+                        '  "log_level": "info",\n'
+                        '  "api_settings": {\n'
+                        '    "default_timeout": 30,\n'
+                        '    "max_retries": 3,\n'
+                        '    "api_version": "v2"\n'
+                        '  },\n'
+                        '  "quantum_settings": {\n'
+                        '    "default_shots": 1024,\n'
+                        '    "use_noise_model": false,\n'
+                        '    "default_optimizer": "SPSA",\n'
+                        '    "max_iterations": 100\n'
+                        '  }\n'
+                        '}\n')
                     
-                    # Add a sample application file
-                    zipf.writestr('quantum_assistant.py', '# This is a simulated application file\n\nprint("Quantum AI Assistant starting...")\nprint("Connecting to quantum backend...")\nprint("Ready!")\n')
+                    # Add a real application file
+                    zipf.writestr('quantum_assistant_app.py', 
+                        'import os\n'
+                        'import sys\n'
+                        'import json\n'
+                        'import subprocess\n'
+                        'import webbrowser\n'
+                        'from pathlib import Path\n\n'
+                        'def check_dependencies():\n'
+                        '    """Check if all required dependencies are installed."""\n'
+                        '    try:\n'
+                        '        import streamlit\n'
+                        '        import numpy\n'
+                        '        import pandas\n'
+                        '        import qiskit\n'
+                        '        import pennylane\n'
+                        '        import plotly\n'
+                        '        import wandb\n'
+                        '        return True\n'
+                        '    except ImportError as e:\n'
+                        '        print(f"Missing dependency: {e}")\n'
+                        '        print("Please install required packages: pip install -r requirements.txt")\n'
+                        '        return False\n\n'
+                        'def load_config():\n'
+                        '    """Load configuration from config.json."""\n'
+                        '    config_path = Path(__file__).parent / "config.json"\n'
+                        '    if config_path.exists():\n'
+                        '        with open(config_path, "r") as f:\n'
+                        '            return json.load(f)\n'
+                        '    return {}\n\n'
+                        'def start_application():\n'
+                        '    """Start the Streamlit application."""\n'
+                        '    print("Starting Quantum AI Assistant...")\n'
+                        '    app_dir = Path(__file__).parent\n'
+                        '    app_path = app_dir / "app.py"\n'
+                        '    \n'
+                        '    # Create a basic app.py if it doesn\'t exist\n'
+                        '    if not app_path.exists():\n'
+                        '        with open(app_path, "w") as f:\n'
+                        '            f.write(\'\'\'\n'
+                        'import streamlit as st\n'
+                        'import pandas as pd\n'
+                        'import numpy as np\n'
+                        'import plotly.express as px\n'
+                        'import plotly.graph_objects as go\n'
+                        'import wandb\n'
+                        'import os\n'
+                        'import io\n'
+                        'import base64\n'
+                        'import time\n'
+                        'import datetime\n'
+                        'from collections import Counter\n'
+                        'import json\n\n'
+                        'st.set_page_config(page_title="Quantum AI Assistant", page_icon="🔬", layout="wide")\n\n'
+                        'st.title("Quantum AI Assistant")\n'
+                        'st.markdown("### W&B Experiment Management System")\n\n'
+                        'st.write("Welcome to the Quantum AI Assistant. Please authenticate with Weights & Biases to begin.")\n\n'
+                        'api_key = st.text_input("W&B API Key", type="password")\n'
+                        'if st.button("Login") and api_key:\n'
+                        '    try:\n'
+                        '        wandb.login(key=api_key)\n'
+                        '        st.success("Successfully logged in to Weights & Biases!")\n'
+                        '        st.info("You can now access your experiments and quantum capabilities.")\n'
+                        '        st.experimental_rerun()\n'
+                        '    except Exception as e:\n'
+                        '        st.error(f"Login failed: {str(e)}")\n'
+                        '\'\'\')\n'
+                        '    \n'
+                        '    # Start the Streamlit app\n'
+                        '    port = 8501\n'
+                        '    url = f"http://localhost:{port}"\n'
+                        '    print(f"Launching browser at {url}")\n'
+                        '    \n'
+                        '    # Start Streamlit in a separate process\n'
+                        '    process = subprocess.Popen(\n'
+                        '        [sys.executable, "-m", "streamlit", "run", str(app_path), "--server.port", str(port)],\n'
+                        '        cwd=str(app_dir)\n'
+                        '    )\n'
+                        '    \n'
+                        '    # Open the web browser after a short delay\n'
+                        '    time.sleep(2)\n'
+                        '    webbrowser.open(url)\n'
+                        '    \n'
+                        '    print("Quantum AI Assistant is running.")\n'
+                        '    print("Close this window to shut down the application.")\n'
+                        '    \n'
+                        '    try:\n'
+                        '        # Keep the process running until interrupted\n'
+                        '        process.wait()\n'
+                        '    except KeyboardInterrupt:\n'
+                        '        print("Shutting down...")\n'
+                        '        process.terminate()\n\n'
+                        'if __name__ == "__main__":\n'
+                        '    if check_dependencies():\n'
+                        '        config = load_config()\n'
+                        '        start_application()\n'
+                        '    else:\n'
+                        '        input("Press Enter to exit...")\n'
+                    )
+                    
+                    # Add some data directory structure
+                    zipf.writestr('data/.gitkeep', '')
+                    zipf.writestr('assets/.gitkeep', '')
+                    
+                    # Add a license file
+                    zipf.writestr('LICENSE.txt',
+                        'MIT License\n\n'
+                        'Copyright (c) 2025 Quantum AI Assistant\n\n'
+                        'Permission is hereby granted, free of charge, to any person obtaining a copy\n'
+                        'of this software and associated documentation files (the "Software"), to deal\n'
+                        'in the Software without restriction, including without limitation the rights\n'
+                        'to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n'
+                        'copies of the Software, and to permit persons to whom the Software is\n'
+                        'furnished to do so, subject to the following conditions:\n\n'
+                        'The above copyright notice and this permission notice shall be included in all\n'
+                        'copies or substantial portions of the Software.\n\n'
+                        'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n'
+                        'IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n'
+                        'FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n'
+                        'AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n'
+                        'LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n'
+                        'OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n'
+                        'SOFTWARE.\n'
+                    )
                 
                 # Reset buffer position and return the data
                 zip_buffer.seek(0)
@@ -196,30 +473,170 @@ def cross_platform_connector():
                         
                         # Install button
                         if st.button("Install Now"):
-                            # Simulate installation process
+                            # Perform real installation process
                             progress_bar = st.progress(0)
                             status_text = st.empty()
                             
-                            # Simulate installation steps
-                            for i, step in enumerate([
+                            # Define installation steps
+                            install_steps = [
                                 "Preparing installation...",
+                                "Creating directory structure...",
                                 "Copying files...",
                                 "Configuring environment...",
                                 "Setting up quantum backends...",
-                                "Registering application...",
-                                "Cleaning up..."
-                            ]):
-                                status_text.text(step)
-                                progress_value = (i + 1) / 7
-                                progress_bar.progress(progress_value)
-                                time.sleep(0.5)  # Simulate work being done
+                                "Creating shortcuts...",
+                                "Finalizing installation..."
+                            ]
                             
-                            # Complete
-                            progress_bar.progress(1.0)
-                            status_text.text("Installation completed successfully!")
-                            
-                            st.success(f"Quantum AI Assistant has been installed to {install_dir}")
-                            st.info("You can now launch the application from your applications menu or desktop shortcut.")
+                            # Perform actual installation
+                            try:
+                                # Step 1: Prepare installation
+                                status_text.text(install_steps[0])
+                                progress_bar.progress(1/len(install_steps))
+                                
+                                # Create installation directory if it doesn't exist
+                                install_dir_expanded = os.path.expanduser(install_dir)
+                                os.makedirs(install_dir_expanded, exist_ok=True)
+                                time.sleep(0.5)  # Short pause for UI feedback
+                                
+                                # Step 2: Create directory structure
+                                status_text.text(install_steps[1])
+                                progress_bar.progress(2/len(install_steps))
+                                
+                                # Create subdirectories
+                                os.makedirs(os.path.join(install_dir_expanded, "data"), exist_ok=True)
+                                os.makedirs(os.path.join(install_dir_expanded, "assets"), exist_ok=True)
+                                os.makedirs(os.path.join(install_dir_expanded, "configs"), exist_ok=True)
+                                time.sleep(0.5)  # Short pause for UI feedback
+                                
+                                # Step 3: Copy files
+                                status_text.text(install_steps[2])
+                                progress_bar.progress(3/len(install_steps))
+                                
+                                # Copy all files from extracted directory to installation directory
+                                for file in extracted_files:
+                                    src_path = os.path.join(tmp_dir, file)
+                                    dst_path = os.path.join(install_dir_expanded, file)
+                                    
+                                    if os.path.isfile(src_path):
+                                        # Copy file
+                                        with open(src_path, 'rb') as src_file:
+                                            with open(dst_path, 'wb') as dst_file:
+                                                dst_file.write(src_file.read())
+                                    
+                                time.sleep(0.5)  # Short pause for UI feedback
+                                
+                                # Step 4: Configure environment
+                                status_text.text(install_steps[3])
+                                progress_bar.progress(4/len(install_steps))
+                                
+                                # Create a dedicated virtual environment
+                                if desktop_os.lower() == 'windows':
+                                    # For Windows: Write a batch file to create venv
+                                    venv_setup_path = os.path.join(install_dir_expanded, "setup_venv.bat")
+                                    with open(venv_setup_path, 'w') as f:
+                                        f.write('@echo off\n')
+                                        f.write('echo Setting up virtual environment...\n')
+                                        f.write('python -m venv .venv\n')
+                                        f.write('.venv\\Scripts\\pip install -r requirements.txt\n')
+                                        f.write('echo Environment setup complete!\n')
+                                else:
+                                    # For Linux/macOS: Write a shell script to create venv
+                                    venv_setup_path = os.path.join(install_dir_expanded, "setup_venv.sh")
+                                    with open(venv_setup_path, 'w') as f:
+                                        f.write('#!/bin/bash\n')
+                                        f.write('echo "Setting up virtual environment..."\n')
+                                        f.write('python3 -m venv .venv\n')
+                                        f.write('.venv/bin/pip install -r requirements.txt\n')
+                                        f.write('echo "Environment setup complete!"\n')
+                                    
+                                    # Make the script executable
+                                    os.chmod(venv_setup_path, 0o755)
+                                
+                                time.sleep(0.5)  # Short pause for UI feedback
+                                
+                                # Step 5: Set up quantum backends
+                                status_text.text(install_steps[4])
+                                progress_bar.progress(5/len(install_steps))
+                                
+                                # Create a config file for quantum backend settings
+                                quantum_config_path = os.path.join(install_dir_expanded, "configs", "quantum_config.json")
+                                with open(quantum_config_path, 'w') as f:
+                                    f.write('{\n')
+                                    f.write('  "default_backend": "aer_simulator",\n')
+                                    f.write('  "shots": 1024,\n')
+                                    f.write('  "optimization_level": 1,\n')
+                                    f.write('  "use_gpu": false,\n')
+                                    f.write('  "available_backends": ["aer_simulator", "statevector_simulator", "qasm_simulator"],\n')
+                                    f.write('  "transpile_settings": {\n')
+                                    f.write('    "optimization_level": 1,\n')
+                                    f.write('    "basis_gates": ["cx", "u1", "u2", "u3"]\n')
+                                    f.write('  }\n')
+                                    f.write('}\n')
+                                
+                                time.sleep(0.5)  # Short pause for UI feedback
+                                
+                                # Step 6: Create shortcuts
+                                status_text.text(install_steps[5])
+                                progress_bar.progress(6/len(install_steps))
+                                
+                                # Create platform-specific launcher
+                                if desktop_os.lower() == 'windows':
+                                    # Create Windows shortcut
+                                    launcher_path = os.path.join(install_dir_expanded, "launch.bat")
+                                    with open(launcher_path, 'w') as f:
+                                        f.write('@echo off\n')
+                                        f.write('cd "%~dp0"\n')
+                                        f.write('if not exist .venv (\n')
+                                        f.write('   echo Virtual environment not found. Setting up...\n')
+                                        f.write('   call setup_venv.bat\n')
+                                        f.write(')\n')
+                                        f.write('.venv\\Scripts\\python quantum_assistant_app.py\n')
+                                        
+                                elif desktop_os.lower() in ['macos', 'linux']:
+                                    # Create shell launcher
+                                    launcher_path = os.path.join(install_dir_expanded, "launch.sh")
+                                    with open(launcher_path, 'w') as f:
+                                        f.write('#!/bin/bash\n')
+                                        f.write('cd "$(dirname "$0")"\n')
+                                        f.write('if [ ! -d ".venv" ]; then\n')
+                                        f.write('    echo "Virtual environment not found. Setting up..."\n')
+                                        f.write('    bash setup_venv.sh\n')
+                                        f.write('fi\n')
+                                        f.write('.venv/bin/python quantum_assistant_app.py\n')
+                                    
+                                    # Make launcher executable
+                                    os.chmod(launcher_path, 0o755)
+                                
+                                time.sleep(0.5)  # Short pause for UI feedback
+                                
+                                # Step 7: Finalize installation
+                                status_text.text(install_steps[6])
+                                progress_bar.progress(7/len(install_steps))
+                                
+                                # Create a file to mark successful installation
+                                with open(os.path.join(install_dir_expanded, ".installation_complete"), 'w') as f:
+                                    f.write(f"Installation completed at: {datetime.datetime.now().isoformat()}\n")
+                                    f.write(f"Installed by: Quantum AI Assistant Cross-Platform Connector\n")
+                                    f.write(f"Target OS: {desktop_os}\n")
+                                
+                                # Complete
+                                time.sleep(0.5)  # Short pause for UI feedback
+                                progress_bar.progress(1.0)
+                                status_text.text("Installation completed successfully!")
+                                
+                                st.success(f"Quantum AI Assistant has been installed to {install_dir}")
+                                
+                                # Show instructions based on OS
+                                if desktop_os.lower() == 'windows':
+                                    st.info("To launch the application, navigate to the installation directory and run launch.bat")
+                                else:
+                                    st.info("To launch the application, navigate to the installation directory and run ./launch.sh")
+                                
+                            except Exception as e:
+                                # Handle installation errors
+                                st.error(f"Installation failed: {str(e)}")
+                                st.info("Please check the console for detailed error information.")
                 
                 else:
                     st.info("Please upload a Quantum AI Assistant installation package (.zip file)")
