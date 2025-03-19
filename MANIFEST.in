@@ -1,0 +1,4 @@
+include quantum_ai_assistant/assets/*
+include quantum_ai_assistant/secure_assets/*
+include quantum_ai_assistant/.streamlit/*
+include quantum_ai_assistant/README.md
