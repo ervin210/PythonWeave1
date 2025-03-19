@@ -1,0 +1,31 @@
+{
+  "os": "Linux-6.2.16-x86_64-with-glibc2.40",
+  "python": "CPython 3.11.10",
+  "startedAt": "2025-03-19T18:01:22.614575Z",
+  "program": "/home/runner/workspace/push_to_wandb.py",
+  "codePath": "push_to_wandb.py",
+  "git": {
+    "remote": "https://github.com/ervin210/PythonWeave1",
+    "commit": "ef4e581884bea56202af0c229ae27fb24145ebc7"
+  },
+  "email": "radosavlevici.ervin@gmail.com",
+  "root": "/home/runner/workspace",
+  "host": "c1b66e3daf42",
+  "executable": "/home/runner/workspace/.pythonlibs/bin/python",
+  "codePathLocal": "push_to_wandb.py",
+  "cpu_count": 4,
+  "cpu_count_logical": 8,
+  "disk": {
+    "/": {
+      "total": "52745244672",
+      "used": "21861777408"
+    }
+  },
+  "memory": {
+    "total": "67436748800"
+  },
+  "cpu": {
+    "count": 4,
+    "countLogical": 8
+  }
+}

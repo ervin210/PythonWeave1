@@ -14,4 +14,6 @@ dependencies = [
     "wandb>=0.19.8",
     "xlsxwriter>=3.2.2",
     "scikit-learn>=1.6.1",
+    "matplotlib>=3.10.1",
+    "pylatexenc>=2.10",
 ]

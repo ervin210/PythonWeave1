@@ -17,6 +17,24 @@ def wandb_sync():
     """
     Push/Pull data to/from Weights & Biases
     """
+    st.title("W&B Sync")
+    
+    if "wandb_authenticated" not in st.session_state or not st.session_state.wandb_authenticated:
+        st.warning("Please authenticate with Weights & Biases first!")
+        st.button("Go to Authentication", on_click=lambda: setattr(st.session_state, "page", "auth"))
+        return
+    
+    # Tabs for different operations
+    tab1, tab2, tab3 = st.tabs(["Push to W&B", "Pull from W&B", "Project Operations"])
+    
+    with tab1:
+        push_to_wandb_component()
+    
+    with tab2:
+        pull_from_wandb_component()
+        
+    with tab3:
+        project_operations_component()
     st.header("🔄 W&B Sync")
     
     st.markdown("""
