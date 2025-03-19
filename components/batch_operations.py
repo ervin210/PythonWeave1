@@ -112,8 +112,8 @@ def batch_operations():
         st.success(f"Selected {len(selected_run_ids)} runs for batch operations.")
         
         # Create tabs for different batch operations
-        compare_tab, export_tab, analyze_tab, quantum_tab = st.tabs([
-            "Compare Metrics", "Export Data", "Statistical Analysis", "Quantum Analysis"
+        compare_tab, export_tab, analyze_tab, quantum_tab, bulk_actions_tab = st.tabs([
+            "Compare Metrics", "Export Data", "Statistical Analysis", "Quantum Analysis", "Bulk Actions"
         ])
         
         # Get the selected runs data
