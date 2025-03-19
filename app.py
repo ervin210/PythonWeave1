@@ -1320,6 +1320,12 @@ def render_sweep_details_page():
 
 # Main application
 def main():
+    # Initialize session state variables
+    initialize_session_state()
+    
+    # Handle OAuth callback if present
+    social_auth_callback_handler()
+    
     # Set up logo protection system - ensure the logo can't be modified
     setup_logo_protection()
     
@@ -1349,9 +1355,6 @@ def main():
     
     # Render sidebar for navigation
     render_sidebar()
-    
-    # Handle OAuth callback if present
-    social_auth_callback_handler()
         
     # Display the appropriate page based on navigation state
     if not st.session_state.authenticated:
