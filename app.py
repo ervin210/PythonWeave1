@@ -19,6 +19,10 @@ def initialize_session_state():
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
     
+    # Add wandb_authenticated for backward compatibility
+    if "wandb_authenticated" not in st.session_state:
+        st.session_state.wandb_authenticated = st.session_state.get("authenticated", False)
+    
     if "api_key" not in st.session_state:
         st.session_state.api_key = ""
     
@@ -68,6 +72,7 @@ def authenticate_wandb(api_key):
         wandb.login(key=api_key)
         st.session_state.api_key = api_key
         st.session_state.authenticated = True
+        st.session_state.wandb_authenticated = True  # Keep both flags in sync
         st.success("Authentication successful!")
         return True
     except Exception as e:
@@ -77,6 +82,7 @@ def authenticate_wandb(api_key):
 def logout_wandb():
     """Log out from Weights & Biases."""
     st.session_state.authenticated = False
+    st.session_state.wandb_authenticated = False  # Clear both flags
     st.session_state.api_key = ""
     st.session_state.current_page = "projects"
     st.session_state.selected_project = None
