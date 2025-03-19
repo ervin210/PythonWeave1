@@ -13,6 +13,10 @@ from qiskit import QuantumCircuit
 from qiskit_aer import Aer
 import pennylane as qml
 
+# Import components
+from components.push_to_wandb_component import push_to_wandb_component
+from components.pull_from_wandb_component import pull_from_wandb_component
+
 def wandb_sync():
     """
     Push/Pull data to/from Weights & Biases
@@ -34,8 +38,8 @@ def wandb_sync():
         pull_from_wandb_component()
         
     with tab3:
+        from components.project_operations import project_operations_component
         project_operations_component()
-    st.header("🔄 W&B Sync")
     
     st.markdown("""
     This component allows you to synchronize your quantum computing experiments with
