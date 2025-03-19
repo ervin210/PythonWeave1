@@ -338,15 +338,31 @@ def reset_password(email):
         # Generate a random password
         import random
         import string
-        random_password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+        # Create a more readable random password with at least one uppercase, one lowercase, one digit
+        letters_lower = string.ascii_lowercase
+        letters_upper = string.ascii_uppercase
+        digits = string.digits
+        
+        # Ensure at least one of each character type
+        random_password = (
+            random.choice(letters_upper) +
+            random.choice(letters_lower) +
+            random.choice(digits) +
+            ''.join(random.choices(letters_lower + letters_upper + digits, k=9))
+        )
+        
+        # Shuffle the password to make it truly random
+        password_list = list(random_password)
+        random.shuffle(password_list)
+        random_password = ''.join(password_list)
         
         # Update the user's password
-        password_hash, salt = generate_password_hash(random_password)
+        password_data = generate_password_hash(random_password)
         
         # Update user password structure
         st.session_state.user_db[email]['password'] = {
-            'hash': password_hash,
-            'salt': salt
+            'hash': password_data['hash'],
+            'salt': password_data['salt']
         }
         st.session_state.user_db[email]["must_change_password"] = True
         
@@ -361,8 +377,8 @@ def render_login_form():
     """Render the login form"""
     st.subheader("Login")
     
-    # Create tabs for password login, reset password, and social login
-    login_tab, reset_tab, social_tab = st.tabs(["Email & Password", "Reset Password", "Social Login"])
+    # Create tabs for password login, reset password, demo account, and social login
+    login_tab, reset_tab, demo_tab, social_tab = st.tabs(["Email & Password", "Reset Password", "Demo Account", "Social Login"])
     
     with login_tab:
         with st.form("login_form"):
@@ -387,8 +403,8 @@ def render_login_form():
             reset_submitted = st.form_submit_button("Reset Password")
             
             if reset_submitted:
-                # Check if this is a root admin email
-                if reset_email in ROOT_ADMIN_EMAILS:
+                # Check if the user exists in the database
+                if reset_email in st.session_state.user_db:
                     success, new_password = reset_password(reset_email)
                     if success:
                         st.success(f"Password has been reset. Your new password is: {new_password}")
@@ -396,7 +412,47 @@ def render_login_form():
                     else:
                         st.error("Could not reset password. Please contact system administrator.")
                 else:
-                    st.error("Only root administrator passwords can be reset through this interface.")
+                    st.error("Email address not found in the system.")
+    
+    with demo_tab:
+        st.markdown("### Demo Account")
+        st.markdown("Use the demo account to explore the system without registration.")
+        
+        # Check if demo account exists, if not create it
+        demo_email = "demo@quantum-ai-assistant.com"
+        
+        if demo_email not in st.session_state.user_db:
+            # Create demo account with known password
+            demo_password = "Demo123!"
+            password_data = generate_password_hash(demo_password)
+            
+            st.session_state.user_db[demo_email] = {
+                'email': demo_email,
+                'name': 'Demo User',
+                'role': 'standard_user',
+                'password': {
+                    'hash': password_data['hash'],
+                    'salt': password_data['salt']
+                },
+                'created_at': datetime.now().isoformat(),
+                'last_login': None,
+                'status': 'active',
+                'must_change_password': False
+            }
+            
+            # Save the user database
+            save_user_database()
+        
+        st.markdown("**Demo account details:**")
+        st.info(f"**Email:** {demo_email}  \n**Password:** Demo123!")
+        
+        if st.button("Login as Demo User", key="demo_login"):
+            success, message = authenticate_user(demo_email, "Demo123!")
+            if success:
+                st.success(message)
+                st.rerun()
+            else:
+                st.error(message)
     
     with social_tab:
         # Import the social login component
