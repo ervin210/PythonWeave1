@@ -24,5 +24,18 @@
     "last_login": null,
     "status": "active",
     "must_change_password": true
+  },
+  "demo@quantum-ai-assistant.com": {
+    "email": "demo@quantum-ai-assistant.com",
+    "name": "Demo User",
+    "role": "standard_user",
+    "password": {
+      "hash": "43ca28dfe8fd11feb81cee7291aa00869766e450eefd0ecd53be69f35d1b459b272b4f7602cea0f64f2f52e0ea4b1f835cab225ba89feb28ac420705f18e73844515f21399838dd3b220a5b570185aa2c8ef572557679bc3f6b93059df759479e16669e9967bd8915f1c8b24378b07b4551a4cd26e21c663806c5533798d2590",
+      "salt": "a7410cb29b043df8e075031a0ad4372f95246a90fa6971db85c7952755a7de6d"
+    },
+    "created_at": "2025-03-19T22:45:09.047867",
+    "last_login": null,
+    "status": "active",
+    "must_change_password": false
   }
 }

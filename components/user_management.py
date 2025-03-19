@@ -57,8 +57,11 @@ def generate_password_hash(password, salt=None):
         dklen=128  # Length of the derived key
     )
     
-    # Return the hash as bytes and the salt as bytes
-    return key, salt
+    # Return the hash and salt as a dictionary
+    return {
+        'hash': key,
+        'salt': salt
+    }
 
 def verify_password(stored_password, provided_password):
     """Verify if the provided password matches the stored hash"""
