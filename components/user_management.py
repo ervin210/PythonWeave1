@@ -105,10 +105,17 @@ def initialize_user_management():
             # Create default user database with root admin users
             st.session_state.user_db = {}
             for email in ROOT_ADMIN_EMAILS:
-                # Create temporary random password for root admins
-                # They should change this on first login
-                temp_password = hashlib.sha256(email.encode()).hexdigest()[:12]
-                password_data = generate_password_hash(temp_password)
+                # Create fixed initial passwords for root admins
+                # Using consistent passwords for designated root admins
+                if email == "radosavlevici.ervin@gmail.com":
+                    initial_password = "zZrgAgz1O64G"  # Use the specified password
+                elif email == "ervin210@icloud.com":
+                    initial_password = "Admin123!"  # Default password for second admin
+                else:
+                    # For any other future root admins
+                    initial_password = "RootAdmin!" + hashlib.sha256(email.encode()).hexdigest()[:6]
+                
+                password_data = generate_password_hash(initial_password)
                 
                 st.session_state.user_db[email] = {
                     'email': email,
@@ -608,7 +615,7 @@ def render_login_form():
         
         if demo_email not in st.session_state.user_db:
             # Create demo account with known password
-            demo_password = "Demo123!"
+            demo_password = "Demo123!"  # Keep for display in the UI
             password_data = generate_password_hash(demo_password)
             
             st.session_state.user_db[demo_email] = {
