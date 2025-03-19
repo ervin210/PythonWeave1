@@ -40,6 +40,13 @@ def generate_password_hash(password, salt=None):
     """Generate a secure hash for the password"""
     if salt is None:
         salt = os.urandom(32)  # 32 bytes of random data for salt
+    elif isinstance(salt, str):
+        # Convert hex string to bytes
+        try:
+            salt = bytes.fromhex(salt)
+        except ValueError:
+            # If not a valid hex string, use it as bytes
+            salt = salt.encode('utf-8')
     
     # Use a secure hashing algorithm with the salt
     key = hashlib.pbkdf2_hmac(
@@ -50,10 +57,8 @@ def generate_password_hash(password, salt=None):
         dklen=128  # Length of the derived key
     )
     
-    return {
-        'hash': key,
-        'salt': salt
-    }
+    # Return the hash as bytes and the salt as bytes
+    return key, salt
 
 def verify_password(stored_password, provided_password):
     """Verify if the provided password matches the stored hash"""
@@ -327,12 +332,37 @@ def delete_user(email):
     
     return True, "User deleted successfully"
 
+def reset_password(email):
+    """Reset the password for a user and generate a new random one"""
+    if email in st.session_state.user_db:
+        # Generate a random password
+        import random
+        import string
+        random_password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+        
+        # Update the user's password
+        password_hash, salt = generate_password_hash(random_password)
+        
+        # Update user password structure
+        st.session_state.user_db[email]['password'] = {
+            'hash': password_hash,
+            'salt': salt
+        }
+        st.session_state.user_db[email]["must_change_password"] = True
+        
+        # Save the user database
+        save_user_database()
+        
+        return True, random_password
+    else:
+        return False, None
+
 def render_login_form():
     """Render the login form"""
     st.subheader("Login")
     
-    # Create tabs for password login and social login
-    login_tab, social_tab = st.tabs(["Email & Password", "Social Login"])
+    # Create tabs for password login, reset password, and social login
+    login_tab, reset_tab, social_tab = st.tabs(["Email & Password", "Reset Password", "Social Login"])
     
     with login_tab:
         with st.form("login_form"):
@@ -347,6 +377,26 @@ def render_login_form():
                     st.rerun()
                 else:
                     st.error(message)
+    
+    with reset_tab:
+        st.markdown("### Password Reset")
+        st.markdown("Forgot your password? Enter your email address below to reset it.")
+        
+        with st.form("reset_password_form"):
+            reset_email = st.text_input("Email Address")
+            reset_submitted = st.form_submit_button("Reset Password")
+            
+            if reset_submitted:
+                # Check if this is a root admin email
+                if reset_email in ROOT_ADMIN_EMAILS:
+                    success, new_password = reset_password(reset_email)
+                    if success:
+                        st.success(f"Password has been reset. Your new password is: {new_password}")
+                        st.info("Please login with this password and change it immediately for security reasons.")
+                    else:
+                        st.error("Could not reset password. Please contact system administrator.")
+                else:
+                    st.error("Only root administrator passwords can be reset through this interface.")
     
     with social_tab:
         # Import the social login component
