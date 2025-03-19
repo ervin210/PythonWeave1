@@ -1370,6 +1370,9 @@ def main():
             from utils.logo_protection import COPYRIGHT_OWNER, COPYRIGHT_EMAIL
             # Add copyright info in small text
             st.markdown(f"<span style='font-size: 0.7em; color: gray;'>© {COPYRIGHT_OWNER}</span>", unsafe_allow_html=True)
+        except Exception:
+            # If import fails, show a generic copyright
+            pass
     
     # Render sidebar for navigation
     render_sidebar()
