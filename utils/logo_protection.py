@@ -34,6 +34,8 @@ BACKUP_LOGO_PATH = "secure_assets/quantum_logo_backup.jpg"
 ENCODED_LOGO_PATH = "secure_assets/.encoded_logo_backup"
 LOGO_HASH_FILE = "secure_assets/.logo_hash"
 LOGO_METADATA_FILE = "secure_assets/.logo_metadata"
+COPYRIGHT_OWNER = "Ervin Remus Radosavlevici"
+COPYRIGHT_EMAIL = ["ervin210@icloud.com", "ervin210@sky.com"]
 CHECK_INTERVAL = 15  # Check every 15 seconds for maximum protection
 
 def calculate_file_hash(file_path):
