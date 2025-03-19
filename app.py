@@ -415,6 +415,10 @@ def render_sidebar():
         if st.sidebar.button("🧠 Quantum AI Assistant", use_container_width=True):
             st.session_state.current_page = "quantum_assistant"
             
+        # IBM Quantum Integration button
+        if st.sidebar.button("⚛️ IBM Quantum", use_container_width=True):
+            st.session_state.current_page = "ibm_quantum"
+            
         # W&B Sync button
         if st.sidebar.button("↕️ W&B Sync", use_container_width=True):
             st.session_state.current_page = "wandb_sync"
@@ -1357,6 +1361,10 @@ def main():
             # Enterprise-level quantum security features
             from components.quantum_security import quantum_security
             quantum_security()
+        elif st.session_state.current_page == "ibm_quantum":
+            # IBM Quantum integration
+            from components.ibm_quantum_integration import ibm_quantum_integration
+            ibm_quantum_integration()
         elif st.session_state.current_page == "quantum_assistant":
             quantum_assistant()
         elif st.session_state.current_page == "wandb_sync":
