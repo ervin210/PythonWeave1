@@ -26,6 +26,12 @@ def initialize_session_state():
     
     if "selected_sweep" not in st.session_state:
         st.session_state.selected_sweep = None
+        
+    if "refresh_required" not in st.session_state:
+        st.session_state.refresh_required = False
+        
+    if "wandb_entity" not in st.session_state:
+        st.session_state.wandb_entity = None
     
     if "run_data" not in st.session_state:
         st.session_state.run_data = None
@@ -59,6 +65,8 @@ def logout_wandb():
     st.session_state.run_data = None
     st.session_state.sweep_data = None
     st.session_state.projects = []
+    st.session_state.refresh_required = False
+    st.session_state.wandb_entity = None
     wandb.logout()
 
 def get_projects():
@@ -66,7 +74,15 @@ def get_projects():
     try:
         api = wandb.Api()
         projects = []
+        
+        # Get the default entity from the first project
+        default_entity = None
+        
         for project in api.projects():
+            if default_entity is None and project.entity:
+                default_entity = project.entity
+                st.session_state.wandb_entity = project.entity
+                
             projects.append({
                 "name": project.name,
                 "entity": project.entity,
@@ -75,6 +91,7 @@ def get_projects():
                 "created_at": getattr(project, "created_at", ""),
                 "last_updated": getattr(project, "updated_at", "")
             })
+        
         st.session_state.projects = projects
         return projects
     except Exception as e:

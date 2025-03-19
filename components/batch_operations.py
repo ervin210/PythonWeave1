@@ -910,6 +910,269 @@ def batch_operations():
                     st.info("No circuit complexity metrics found in the selected runs.")
             else:
                 st.info("No quantum-specific parameters detected in the selected runs.")
+        
+        # Bulk Actions Tab
+        with bulk_actions_tab:
+            st.subheader("Bulk Actions")
+            
+            st.markdown("""
+            This tab provides tools for performing bulk operations across multiple runs simultaneously,
+            including batch tagging, status management, metadata operations, and more.
+            """)
+            
+            # Create sub-tabs for different bulk operations
+            batch_tagging_tab, status_management_tab, metadata_tab = st.tabs([
+                "Batch Tagging", "Status Management", "Metadata Operations"
+            ])
+            
+            # Batch Tagging Tab
+            with batch_tagging_tab:
+                st.markdown("### Add or Remove Tags")
+                
+                # Display current tags for selected runs
+                all_tags = set()
+                run_tags = {}
+                
+                for run in selected_runs:
+                    tags = run.get("tags", [])
+                    run_tags[run["id"]] = tags
+                    all_tags.update(tags)
+                
+                # Show current tags table
+                if all_tags:
+                    st.markdown("#### Current Tags")
+                    
+                    # Create a dataframe to show which runs have which tags
+                    tag_data = []
+                    for run in selected_runs:
+                        run_data = {"Run": run["name"], "ID": run["id"]}
+                        
+                        for tag in sorted(all_tags):
+                            run_data[tag] = "✓" if tag in run_tags.get(run["id"], []) else ""
+                        
+                        tag_data.append(run_data)
+                    
+                    tag_df = pd.DataFrame(tag_data)
+                    st.dataframe(tag_df, use_container_width=True)
+                else:
+                    st.info("No tags found on the selected runs.")
+                
+                # Add new tags
+                st.markdown("#### Add New Tags")
+                new_tags = st.text_input("Enter new tags (comma-separated):")
+                
+                if st.button("Add Tags to Selected Runs"):
+                    if new_tags:
+                        tag_list = [tag.strip() for tag in new_tags.split(",") if tag.strip()]
+                        
+                        if tag_list:
+                            try:
+                                # Use the W&B API to add tags to each run
+                                api = wandb.Api()
+                                
+                                success_count = 0
+                                for run_id in selected_run_ids:
+                                    try:
+                                        run = api.run(f"{st.session_state.wandb_entity}/{st.session_state.selected_project}/{run_id}")
+                                        run.tags = list(set(run.tags + tag_list))
+                                        run.update()
+                                        success_count += 1
+                                    except Exception as e:
+                                        st.error(f"Error adding tags to run {run_id}: {str(e)}")
+                                
+                                if success_count > 0:
+                                    st.success(f"Added tags to {success_count} runs. Refresh the page to see updates.")
+                                    # Update session state runs data
+                                    st.session_state.refresh_required = True
+                            except Exception as e:
+                                st.error(f"Error accessing W&B API: {str(e)}")
+                        else:
+                            st.warning("No valid tags provided.")
+                    else:
+                        st.warning("Please enter at least one tag.")
+                
+                # Remove tags
+                st.markdown("#### Remove Tags")
+                if all_tags:
+                    tags_to_remove = st.multiselect("Select tags to remove:", sorted(all_tags))
+                    
+                    if st.button("Remove Selected Tags"):
+                        if tags_to_remove:
+                            try:
+                                # Use the W&B API to remove tags from each run
+                                api = wandb.Api()
+                                
+                                success_count = 0
+                                for run_id in selected_run_ids:
+                                    try:
+                                        run = api.run(f"{st.session_state.wandb_entity}/{st.session_state.selected_project}/{run_id}")
+                                        run.tags = [tag for tag in run.tags if tag not in tags_to_remove]
+                                        run.update()
+                                        success_count += 1
+                                    except Exception as e:
+                                        st.error(f"Error removing tags from run {run_id}: {str(e)}")
+                                
+                                if success_count > 0:
+                                    st.success(f"Removed tags from {success_count} runs. Refresh the page to see updates.")
+                                    # Update session state runs data
+                                    st.session_state.refresh_required = True
+                            except Exception as e:
+                                st.error(f"Error accessing W&B API: {str(e)}")
+                        else:
+                            st.warning("Please select at least one tag to remove.")
+                else:
+                    st.info("No tags available to remove.")
+            
+            # Status Management Tab
+            with status_management_tab:
+                st.markdown("### Manage Run Status")
+                
+                # Display current status
+                st.markdown("#### Current Status")
+                status_data = []
+                for run in selected_runs:
+                    status_data.append({
+                        "Run": run["name"],
+                        "ID": run["id"],
+                        "State": run.get("state", "unknown"),
+                        "Created At": run.get("created_at", "")
+                    })
+                
+                status_df = pd.DataFrame(status_data)
+                st.dataframe(status_df, use_container_width=True)
+                
+                # Status change operations
+                st.markdown("#### Change Status")
+                
+                status_action = st.selectbox(
+                    "Select action:",
+                    ["Archive Runs", "Unarchive Runs", "Mark as Failed", "Mark as Finished"]
+                )
+                
+                if st.button(f"Apply {status_action}"):
+                    try:
+                        # Use the W&B API to change run status
+                        api = wandb.Api()
+                        
+                        success_count = 0
+                        for run_id in selected_run_ids:
+                            try:
+                                run = api.run(f"{st.session_state.wandb_entity}/{st.session_state.selected_project}/{run_id}")
+                                
+                                if status_action == "Archive Runs":
+                                    run.archive()
+                                elif status_action == "Unarchive Runs":
+                                    run.unarchive()
+                                elif status_action == "Mark as Failed":
+                                    run.state = "failed"
+                                    run.update()
+                                elif status_action == "Mark as Finished":
+                                    run.state = "finished"
+                                    run.update()
+                                
+                                success_count += 1
+                            except Exception as e:
+                                st.error(f"Error changing status for run {run_id}: {str(e)}")
+                        
+                        if success_count > 0:
+                            st.success(f"Changed status for {success_count} runs. Refresh the page to see updates.")
+                            # Update session state runs data
+                            st.session_state.refresh_required = True
+                    except Exception as e:
+                        st.error(f"Error accessing W&B API: {str(e)}")
+            
+            # Metadata Operations Tab
+            with metadata_tab:
+                st.markdown("### Metadata Operations")
+                
+                # Add or update notes
+                st.markdown("#### Run Notes")
+                batch_notes = st.text_area("Enter notes to add to all selected runs:", height=100)
+                
+                append_mode = st.checkbox("Append to existing notes (unchecked will replace notes)")
+                
+                if st.button("Update Notes"):
+                    if batch_notes:
+                        try:
+                            # Use the W&B API to update notes for each run
+                            api = wandb.Api()
+                            
+                            success_count = 0
+                            for run_id in selected_run_ids:
+                                try:
+                                    run = api.run(f"{st.session_state.wandb_entity}/{st.session_state.selected_project}/{run_id}")
+                                    
+                                    if append_mode and run.notes:
+                                        run.notes = f"{run.notes}\n\n{batch_notes}"
+                                    else:
+                                        run.notes = batch_notes
+                                    
+                                    run.update()
+                                    success_count += 1
+                                except Exception as e:
+                                    st.error(f"Error updating notes for run {run_id}: {str(e)}")
+                            
+                            if success_count > 0:
+                                st.success(f"Updated notes for {success_count} runs. Refresh the page to see updates.")
+                                # Update session state runs data
+                                st.session_state.refresh_required = True
+                        except Exception as e:
+                            st.error(f"Error accessing W&B API: {str(e)}")
+                    else:
+                        st.warning("Please enter notes to update.")
+                
+                # Add custom metadata
+                st.markdown("#### Add Custom Metadata")
+                st.info("Custom metadata will be added to the summary section of each run.")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    metadata_key = st.text_input("Metadata Key:")
+                with col2:
+                    metadata_value = st.text_input("Metadata Value:")
+                
+                if st.button("Add Metadata"):
+                    if metadata_key and metadata_value:
+                        try:
+                            # Use the W&B API to add metadata to each run
+                            api = wandb.Api()
+                            
+                            success_count = 0
+                            for run_id in selected_run_ids:
+                                try:
+                                    run = api.run(f"{st.session_state.wandb_entity}/{st.session_state.selected_project}/{run_id}")
+                                    
+                                    # Try to convert value to the appropriate type
+                                    try:
+                                        if metadata_value.lower() == "true":
+                                            typed_value = True
+                                        elif metadata_value.lower() == "false":
+                                            typed_value = False
+                                        elif metadata_value.isdigit():
+                                            typed_value = int(metadata_value)
+                                        else:
+                                            try:
+                                                typed_value = float(metadata_value)
+                                            except ValueError:
+                                                typed_value = metadata_value
+                                    except:
+                                        typed_value = metadata_value
+                                    
+                                    # Update the run's summary with the new metadata
+                                    run.summary[metadata_key] = typed_value
+                                    run.update()
+                                    success_count += 1
+                                except Exception as e:
+                                    st.error(f"Error adding metadata to run {run_id}: {str(e)}")
+                            
+                            if success_count > 0:
+                                st.success(f"Added metadata to {success_count} runs. Refresh the page to see updates.")
+                                # Update session state runs data
+                                st.session_state.refresh_required = True
+                        except Exception as e:
+                            st.error(f"Error accessing W&B API: {str(e)}")
+                    else:
+                        st.warning("Please enter both a metadata key and value.")
     
     else:
         if selected_run_ids:
