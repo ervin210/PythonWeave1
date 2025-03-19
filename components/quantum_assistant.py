@@ -1923,12 +1923,53 @@ def create_qft_circuit(num_qubits):
 
 def circuit_to_image(circuit):
     """Convert a Qiskit circuit to an image"""
+    from utils.logo_protection import COPYRIGHT_OWNER
+    
+    # Draw the circuit
     circuit_drawing = circuit.draw(output='mpl')
+    
+    # Save to buffer
     buf = io.BytesIO()
     circuit_drawing.savefig(buf, format='png')
     buf.seek(0)
+    
+    # Open as PIL Image
     img = Image.open(buf)
-    return img
+    
+    # Add logo and copyright
+    try:
+        logo = Image.open("assets/quantum_logo.jpg")
+        # Resize logo to be proportional to the circuit image
+        logo_width = min(img.width // 4, 150)
+        logo_height = int(logo.height * (logo_width / logo.width))
+        logo = logo.resize((logo_width, logo_height))
+        
+        # Create a new image with space for logo
+        new_height = img.height + logo_height + 20  # Add padding
+        new_img = Image.new('RGB', (img.width, new_height), (255, 255, 255))
+        
+        # Paste circuit image
+        new_img.paste(img, (0, logo_height + 20))
+        
+        # Paste logo at top-left
+        new_img.paste(logo, (10, 10))
+        
+        # Add copyright text
+        from PIL import ImageDraw, ImageFont
+        draw = ImageDraw.Draw(new_img)
+        try:
+            # Try to load a font, fall back to default if not available
+            font = ImageFont.truetype("arial.ttf", 12)
+        except:
+            font = ImageFont.load_default()
+        
+        copyright_text = f"© {COPYRIGHT_OWNER}"
+        draw.text((logo_width + 20, 20), copyright_text, fill=(0, 0, 0), font=font)
+        
+        return new_img
+    except Exception as e:
+        # If any error occurs with the logo, return the original image
+        return img
 
 def run_quantum_circuit(circuit):
     """Run a quantum circuit simulation"""
