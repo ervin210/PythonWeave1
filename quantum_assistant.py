@@ -520,12 +520,74 @@ def circuit_to_image(circuit):
 
 
 def run_quantum_circuit(circuit):
-    """Run a quantum circuit simulation"""
-    backend = Aer.get_backend('qasm_simulator')
-    job = backend.run(circuit, shots=1024)
-    result = job.result()
-    counts = result.get_counts(circuit)
-    return counts
+    """Run a quantum circuit on real quantum hardware when available"""
+    # Check if we have IBMQ credentials
+    if 'ibmq_token' not in st.session_state:
+        # Ask for IBMQ token if not available
+        ibmq_token = st.text_input("Enter your IBM Quantum API Token", type="password", 
+                                  help="Get your token from https://quantum-computing.ibm.com/account")
+        if st.button("Save IBMQ Token"):
+            # Save token and try to authenticate
+            st.session_state.ibmq_token = ibmq_token
+            
+            # Try to load IBMQ account
+            try:
+                IBMQ.save_account(ibmq_token, overwrite=True)
+                IBMQ.load_account()
+                st.success("Successfully connected to IBM Quantum!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Failed to authenticate with IBM Quantum: {str(e)}")
+                del st.session_state.ibmq_token
+        
+        # Use simulator while waiting for token
+        st.warning("Using local simulator until IBM Quantum authentication is completed")
+        backend = Aer.get_backend('qasm_simulator')
+        job = backend.run(circuit, shots=1024)
+        result = job.result()
+        return result
+    else:
+        # We have IBMQ credentials, try to use real quantum computer
+        try:
+            provider = IBMQ.load_account()
+            
+            # Show available backends
+            available_backends = provider.backends()
+            backend_names = [b.name() for b in available_backends]
+            
+            # Let user choose a backend
+            if 'quantum_backend' not in st.session_state:
+                selected_backend = st.selectbox("Select IBM Quantum Backend", 
+                                              options=backend_names,
+                                              help="Choose a real quantum computer or simulator")
+                if st.button("Use Selected Backend"):
+                    st.session_state.quantum_backend = selected_backend
+                    st.rerun()
+                
+                # Use simulator while waiting
+                st.warning("Using local simulator until backend selection is confirmed")
+                backend = Aer.get_backend('qasm_simulator')
+                job = backend.run(circuit, shots=1024)
+                result = job.result()
+                return result
+            else:
+                # Use the selected backend
+                selected_backend = st.session_state.quantum_backend
+                real_backend = provider.get_backend(selected_backend)
+                
+                st.info(f"Running on IBM Quantum backend: {selected_backend}")
+                with st.spinner("Running on real quantum hardware, this may take some time..."):
+                    job = qiskit.execute(circuit, real_backend, shots=1024)
+                    result = job.result()
+                st.success("Quantum computation completed successfully!")
+                return result
+        except Exception as e:
+            st.error(f"Error connecting to IBM Quantum: {str(e)}")
+            st.warning("Falling back to local simulator")
+            backend = Aer.get_backend('qasm_simulator')
+            job = backend.run(circuit, shots=1024)
+            result = job.result()
+            return result
 
 
 def plot_quantum_results(counts):

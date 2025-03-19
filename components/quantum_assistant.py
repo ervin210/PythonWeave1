@@ -5,9 +5,14 @@ import plotly.express as px
 import plotly.graph_objects as go
 import qiskit
 from qiskit import QuantumCircuit
+# Use qiskit-ibm-runtime for newer version
+from qiskit_ibm_runtime import QiskitRuntimeService
 from qiskit_aer import Aer
 from qiskit.visualization import plot_histogram
 import pennylane as qml
+import time
+import io
+from io import BytesIO
 import wandb
 import json
 import io
@@ -1377,7 +1382,20 @@ def circuit_to_image(circuit):
 
 def run_quantum_circuit(circuit):
     """Run a quantum circuit simulation"""
-    simulator = Aer.get_backend('qasm_simulator')
+    # For Qiskit 1.0+, use the AerSimulator from qiskit_aer
+    from qiskit_aer import AerSimulator
+    simulator = AerSimulator()
+    
+    # In Qiskit 1.0+, we need to make sure the circuit has measurements
+    # If it doesn't have measurements, add them to all qubits
+    if not circuit.num_clbits:
+        from qiskit import QuantumCircuit
+        measured_circuit = QuantumCircuit(circuit.num_qubits, circuit.num_qubits)
+        measured_circuit.compose(circuit, inplace=True)
+        measured_circuit.measure_all()
+        circuit = measured_circuit
+    
+    # Run the simulation
     job = simulator.run(circuit, shots=1024)
     result = job.result()
     return result

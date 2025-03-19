@@ -11,7 +11,9 @@ import io
 import qiskit
 from qiskit import QuantumCircuit
 from qiskit_aer import Aer
+from qiskit_ibm_runtime import QiskitRuntimeService
 import pennylane as qml
+import zipfile
 
 # Import components
 from components.push_to_wandb_component import push_to_wandb_component
@@ -320,72 +322,156 @@ def wandb_sync():
                                 else:  # Random Circuit
                                     circuit = create_random_circuit(n_qubits, circuit_depth)
                                 
-                                # Run simulation
-                                if backend.startswith("Aer"):
+                                # Connect to real quantum backends
+                                st.info("Connecting to real quantum backends...")
+                                
+                                # First check if we have IBMQ credentials
+                                if 'ibmq_token' not in st.session_state:
+                                    # Ask for IBMQ token if not available
+                                    ibmq_token = st.text_input("Enter your IBM Quantum API Token", type="password", 
+                                                               help="Get your token from https://quantum-computing.ibm.com/account")
+                                    if st.button("Save IBMQ Token"):
+                                        # Save token and try to authenticate
+                                        st.session_state.ibmq_token = ibmq_token
+                                        
+                                        # Try to load IBM Quantum account with new QiskitRuntimeService
+                                        try:
+                                            QiskitRuntimeService.save_account(channel="ibm_quantum", token=ibmq_token, overwrite=True)
+                                            service = QiskitRuntimeService(channel="ibm_quantum")
+                                            st.success(f"Successfully connected to IBM Quantum as {service.account()['name']}!")
+                                            st.rerun()
+                                        except Exception as e:
+                                            st.error(f"Failed to authenticate with IBM Quantum: {str(e)}")
+                                            del st.session_state.ibmq_token
+                                    
+                                    # Use simulator while waiting for token
+                                    st.warning("Using local simulator until IBM Quantum authentication is completed")
                                     backend_type = "statevector_simulator" if backend == "Aer Statevector" else "qasm_simulator"
                                     sim = Aer.get_backend(backend_type)
                                     result = qiskit.execute(circuit, sim, shots=shots).result()
                                     counts = result.get_counts(circuit)
-                                    
-                                    # Save circuit diagram
-                                    circuit_img = circuit_to_image(circuit)
-                                    wandb.log({"circuit_diagram": wandb.Image(circuit_img)})
-                                    
-                                    # Log results
-                                    wandb.log({
-                                        "circuit_depth": circuit.depth(),
-                                        "circuit_width": circuit.width(),
-                                        "circuit_size": circuit.size(),
-                                        "gate_counts": circuit.count_ops(),
-                                    })
-                                    
-                                    # Log measurement probabilities
-                                    probs = {}
-                                    for state, count in counts.items():
-                                        probs[state] = count / shots
-                                    wandb.log({"measurement_probabilities": probs})
-                                    
-                                    # Create and log visualization
-                                    fig = plot_quantum_results(counts)
-                                    wandb.log({"measurement_results": wandb.Image(fig)})
-                                    
-                                else:  # Pennylane
-                                    dev = qml.device("default.qubit", wires=n_qubits, shots=shots)
-                                    
-                                    @qml.qnode(dev)
-                                    def pennylane_circuit():
-                                        if circuit_type == "Bell State":
-                                            qml.Hadamard(wires=0)
-                                            qml.CNOT(wires=[0, 1])
-                                        elif circuit_type == "GHZ State":
-                                            qml.Hadamard(wires=0)
-                                            for i in range(1, n_qubits):
-                                                qml.CNOT(wires=[0, i])
-                                        elif circuit_type == "Quantum Fourier Transform":
-                                            qml.QFT(wires=range(n_qubits))
-                                        else:  # Random Circuit
-                                            # Add random rotation gates
-                                            for i in range(n_qubits):
-                                                qml.RX(np.random.uniform(0, 2*np.pi), wires=i)
-                                                qml.RY(np.random.uniform(0, 2*np.pi), wires=i)
-                                                qml.RZ(np.random.uniform(0, 2*np.pi), wires=i)
-                                            
-                                            # Add entangling gates
-                                            for layer in range(circuit_depth):
-                                                for i in range(n_qubits-1):
-                                                    qml.CNOT(wires=[i, i+1])
+                                else:
+                                    # We have IBM Quantum credentials, try to use real quantum computer
+                                    try:
+                                        # Use QiskitRuntimeService to access backends
+                                        service = QiskitRuntimeService(channel="ibm_quantum")
                                         
-                                        return qml.probs(wires=range(n_qubits))
+                                        # Show available backends
+                                        available_backends = service.backends()
+                                        backend_names = [backend.name for backend in available_backends]
+                                        
+                                        # Let user choose a backend
+                                        if 'quantum_backend' not in st.session_state:
+                                            selected_backend = st.selectbox("Select IBM Quantum Backend", 
+                                                                          options=backend_names,
+                                                                          help="Choose a real quantum computer or simulator")
+                                            if st.button("Use Selected Backend"):
+                                                st.session_state.quantum_backend = selected_backend
+                                                st.rerun()
+                                            
+                                            # Use simulator while waiting
+                                            st.warning("Using local simulator until backend selection is confirmed")
+                                            backend_type = "qasm_simulator"
+                                            sim = Aer.get_backend(backend_type)
+                                            result = qiskit.execute(circuit, sim, shots=shots).result()
+                                            counts = result.get_counts(circuit)
+                                        else:
+                                            # Use the selected backend with QiskitRuntimeService
+                                            selected_backend = st.session_state.quantum_backend
+                                            
+                                            # Get the backend from the service
+                                            real_backend = service.backend(selected_backend)
+                                            
+                                            st.info(f"Running on IBM Quantum backend: {selected_backend}")
+                                            with st.spinner("Running on real quantum hardware, this may take some time..."):
+                                                # For Qiskit 1.0+, use the Sampler primitive
+                                                from qiskit_ibm_runtime import Sampler
+                                                
+                                                # Create a sampler instance
+                                                sampler = Sampler(backend=real_backend)
+                                                
+                                                # Run the sampler
+                                                job = sampler.run(circuit, shots=shots)
+                                                result = job.result()
+                                                counts = result.quasi_dists[0]
+                                                
+                                                # Convert to proper counts format for compatibility
+                                                integer_counts = {}
+                                                for bitstring, probability in counts.items():
+                                                    # Convert integer to binary string and format it
+                                                    n_bits = circuit.num_clbits
+                                                    binary = format(bitstring, f'0{n_bits}b')
+                                                    integer_counts[binary] = int(probability * shots)
+                                            st.success("Quantum computation completed successfully!")
+                                    except Exception as e:
+                                        st.error(f"Error connecting to IBM Quantum: {str(e)}")
+                                        st.warning("Falling back to local simulator")
+                                        backend_type = "qasm_simulator"
+                                        sim = Aer.get_backend(backend_type)
+                                        result = qiskit.execute(circuit, sim, shots=shots).result()
+                                        counts = result.get_counts(circuit)
+                                
+                                # Save circuit diagram
+                                circuit_img = circuit_to_image(circuit)
+                                wandb.log({"circuit_diagram": wandb.Image(circuit_img)})
+                                
+                                # Log results
+                                wandb.log({
+                                    "circuit_depth": circuit.depth(),
+                                    "circuit_width": circuit.width(),
+                                    "circuit_size": circuit.size(),
+                                    "gate_counts": circuit.count_ops(),
+                                    "quantum_backend": selected_backend if 'selected_backend' in locals() else backend_type,
+                                    "is_real_quantum_hardware": not backend.startswith("Aer") and 'selected_backend' in locals()
+                                })
                                     
-                                    # Run the circuit
-                                    probabilities = pennylane_circuit()
+                                # Log measurement probabilities
+                                probs = {}
+                                for state, count in counts.items():
+                                    probs[state] = count / shots
+                                wandb.log({"measurement_probabilities": probs})
+                                
+                                # Create and log visualization
+                                fig = plot_quantum_results(counts)
+                                wandb.log({"measurement_results": wandb.Image(fig)})
+                                
+                                # Pennylane implementation
+                                dev = qml.device("default.qubit", wires=n_qubits, shots=shots)
+                                
+                                @qml.qnode(dev)
+                                def pennylane_circuit():
+                                    if circuit_type == "Bell State":
+                                        qml.Hadamard(wires=0)
+                                        qml.CNOT(wires=[0, 1])
+                                    elif circuit_type == "GHZ State":
+                                        qml.Hadamard(wires=0)
+                                        for i in range(1, n_qubits):
+                                            qml.CNOT(wires=[0, i])
+                                    elif circuit_type == "Quantum Fourier Transform":
+                                        qml.QFT(wires=range(n_qubits))
+                                    else:  # Random Circuit
+                                        # Add random rotation gates
+                                        for i in range(n_qubits):
+                                            qml.RX(np.random.uniform(0, 2*np.pi), wires=i)
+                                            qml.RY(np.random.uniform(0, 2*np.pi), wires=i)
+                                            qml.RZ(np.random.uniform(0, 2*np.pi), wires=i)
+                                        
+                                        # Add entangling gates
+                                        for layer in range(circuit_depth):
+                                            for i in range(n_qubits-1):
+                                                qml.CNOT(wires=[i, i+1])
                                     
-                                    # Log results
-                                    wandb.log({
-                                        "pennylane_probabilities": probabilities.tolist(),
-                                        "circuit_type": circuit_type,
-                                        "n_qubits": n_qubits,
-                                    })
+                                    return qml.probs(wires=range(n_qubits))
+                                
+                                # Run the circuit
+                                probabilities = pennylane_circuit()
+                                
+                                # Log results
+                                wandb.log({
+                                    "pennylane_probabilities": probabilities.tolist(),
+                                    "circuit_type": circuit_type,
+                                    "n_qubits": n_qubits,
+                                })
                             
                             elif exp_type == "Variational Algorithm":
                                 # Simple VQE simulation

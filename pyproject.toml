@@ -8,8 +8,6 @@ dependencies = [
     "pandas>=2.2.3",
     "pennylane>=0.35.1",
     "plotly>=6.0.1",
-    "qiskit-aer>=0.17.0",
-    "qiskit>=1.4.2",
     "streamlit>=1.43.2",
     "wandb>=0.19.8",
     "xlsxwriter>=3.2.2",
@@ -18,4 +16,7 @@ dependencies = [
     "pylatexenc>=2.10",
     "stripe>=11.6.0",
     "markdown>=3.7",
+    "qiskit>=1.4.2",
+    "qiskit-aer>=0.17.0",
+    "qiskit-ibm-runtime>=0.37.0",
 ]
