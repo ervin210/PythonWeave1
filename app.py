@@ -543,9 +543,14 @@ def render_auth_page():
     
     with col1:
         try:
-            logo = Image.open("assets/quantum_logo.jpg")
-            st.image(logo, width=100)
-        except FileNotFoundError:
+            # Try to use SVG logo first (preferred)
+            if os.path.exists("assets/quantum_logo.svg"):
+                st.image("assets/quantum_logo.svg", width=100)
+            # Fallback to jpg if exists
+            elif os.path.exists("assets/quantum_logo.jpg"):
+                logo = Image.open("assets/quantum_logo.jpg")
+                st.image(logo, width=100)
+        except Exception:
             pass
     
     with col2:
@@ -1372,10 +1377,21 @@ def main():
     
     with col1:
         try:
-            logo = Image.open("assets/quantum_logo.jpg")
-            st.image(logo, width=120)
-        except FileNotFoundError:
-            st.error("Logo not found. The system will attempt to restore it.")
+            # Try to use SVG logo first (preferred)
+            if os.path.exists("assets/quantum_logo.svg"):
+                st.image("assets/quantum_logo.svg", width=120)
+            # Fallback to jpg if exists
+            elif os.path.exists("assets/quantum_logo.jpg"):
+                logo = Image.open("assets/quantum_logo.jpg")
+                st.image(logo, width=120)
+            else:
+                st.error("Logo not found. The system will attempt to restore it.")
+                # Attempt to restore the logo
+                if restore_logo():
+                    st.success("Logo restored successfully!")
+                    st.rerun()
+        except Exception as e:
+            st.error(f"Error displaying logo: {str(e)}")
             # Attempt to restore the logo
             if restore_logo():
                 st.success("Logo restored successfully!")

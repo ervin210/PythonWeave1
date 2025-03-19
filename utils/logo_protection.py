@@ -28,9 +28,10 @@ logging.basicConfig(
 logger = logging.getLogger('LogoProtection')
 
 # Constants
-LOGO_PATH = "assets/quantum_logo.jpg"
-SECURE_LOGO_PATH = "secure_assets/quantum_logo.jpg"
-BACKUP_LOGO_PATH = "secure_assets/quantum_logo_backup.jpg"
+LOGO_PATH = "assets/quantum_logo.svg"  # Using SVG as primary logo
+LOGO_PATH_JPG = "assets/quantum_logo.jpg"  # JPG as fallback
+SECURE_LOGO_PATH = "secure_assets/quantum_logo.svg"
+BACKUP_LOGO_PATH = "secure_assets/quantum_logo_backup.svg"
 ENCODED_LOGO_PATH = "secure_assets/.encoded_logo_backup"
 LOGO_HASH_FILE = "secure_assets/.logo_hash"
 LOGO_METADATA_FILE = "secure_assets/.logo_metadata"
@@ -120,12 +121,21 @@ def setup_logo_protection():
         os.makedirs(os.path.dirname(SECURE_LOGO_PATH), exist_ok=True)
         os.makedirs(os.path.dirname(LOGO_PATH), exist_ok=True)
         
-        # If attached_assets/blob.jpg exists, use it to initialize the logo system
+        # If attached_assets/blob.jpg exists and we don't have an SVG, convert it
         if os.path.exists("attached_assets/blob.jpg") and not os.path.exists(SECURE_LOGO_PATH):
             logger.info("Using attached blob as initial logo")
-            shutil.copy2("attached_assets/blob.jpg", SECURE_LOGO_PATH)
+            # Copy SVG directly if it exists
+            if os.path.exists("assets/quantum_logo.svg"):
+                shutil.copy2("assets/quantum_logo.svg", SECURE_LOGO_PATH)
+            else:
+                # Otherwise use the JPG version
+                shutil.copy2("attached_assets/blob.jpg", SECURE_LOGO_PATH)
+            
             if not os.path.exists(LOGO_PATH):
-                shutil.copy2("attached_assets/blob.jpg", LOGO_PATH)
+                if os.path.exists("assets/quantum_logo.svg"):
+                    shutil.copy2("assets/quantum_logo.svg", LOGO_PATH)
+                else:
+                    shutil.copy2("attached_assets/blob.jpg", LOGO_PATH)
         
         # If the logo exists in assets but not in secure_assets, copy it
         elif os.path.exists(LOGO_PATH) and not os.path.exists(SECURE_LOGO_PATH):
@@ -255,18 +265,46 @@ def store_logo_metadata():
         return False
     
     try:
-        img = Image.open(SECURE_LOGO_PATH)
-        
-        # Get image properties
-        metadata = {
-            "format": img.format,
-            "mode": img.mode,
-            "width": img.width,
-            "height": img.height,
-            "created": datetime.datetime.now().isoformat(),
-            "hash": calculate_file_hash(SECURE_LOGO_PATH),
-            "size": os.path.getsize(SECURE_LOGO_PATH)
-        }
+        # For SVG files, we handle differently than raster images
+        if SECURE_LOGO_PATH.lower().endswith('.svg'):
+            # For SVG, store file info instead of image properties
+            file_size = os.path.getsize(SECURE_LOGO_PATH)
+            file_hash = calculate_file_hash(SECURE_LOGO_PATH)
+            
+            with open(SECURE_LOGO_PATH, 'r') as f:
+                svg_content = f.read()
+                
+            # Try to extract width and height from SVG
+            import re
+            width_match = re.search(r'width="(\d+)"', svg_content)
+            height_match = re.search(r'height="(\d+)"', svg_content)
+            
+            width = int(width_match.group(1)) if width_match else 0
+            height = int(height_match.group(1)) if height_match else 0
+            
+            metadata = {
+                "format": "SVG",
+                "mode": "vector",
+                "width": width,
+                "height": height,
+                "created": datetime.datetime.now().isoformat(),
+                "hash": file_hash,
+                "size": file_size
+            }
+        else:
+            # For raster images, use PIL
+            img = Image.open(SECURE_LOGO_PATH)
+            
+            # Get image properties
+            metadata = {
+                "format": img.format,
+                "mode": img.mode,
+                "width": img.width,
+                "height": img.height,
+                "created": datetime.datetime.now().isoformat(),
+                "hash": calculate_file_hash(SECURE_LOGO_PATH),
+                "size": os.path.getsize(SECURE_LOGO_PATH)
+            }
         
         # Save metadata
         os.makedirs(os.path.dirname(LOGO_METADATA_FILE), exist_ok=True)
