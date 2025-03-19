@@ -47,7 +47,118 @@ class AutoUpdater:
         system = platform.system().lower()
         machine = platform.machine().lower()
         
-        if system == "windows":
+        # Enhanced platform detection including mobile devices
+        # and special hardware configurations
+        
+        # Check for mobile and IoT devices
+        def detect_special_devices():
+            # Common Android environment variables
+            if os.environ.get("ANDROID_ROOT") or os.environ.get("ANDROID_DATA"):
+                return "android"
+                
+            # iOS detection (for simulator/dev environments)
+            if system == "darwin" and (
+                os.environ.get("SIMULATOR_DEVICE_NAME") or 
+                os.environ.get("IPHONE_SIMULATOR_ROOT")
+            ):
+                return "ios"
+                
+            # Check for Raspberry Pi
+            if os.path.exists("/proc/cpuinfo"):
+                try:
+                    with open("/proc/cpuinfo", "r") as f:
+                        cpuinfo = f.read()
+                    if "Raspberry Pi" in cpuinfo:
+                        return "raspberrypi"
+                except:
+                    pass
+                    
+            # Check for router/IoT specific hardware
+            try:
+                with open("/proc/cpuinfo", "r") as f:
+                    cpuinfo = f.read()
+                if any(x in cpuinfo for x in ["MIPS", "mips", "Atheros", "Broadcom"]):
+                    return "router"
+            except:
+                pass
+                
+            # Check for WSL (Windows Subsystem for Linux)
+            try:
+                if os.path.exists("/proc/version"):
+                    with open("/proc/version", "r") as f:
+                        version = f.read()
+                    if "microsoft" in version.lower():
+                        return "wsl"
+            except:
+                pass
+                
+            return None
+        
+        # Check for networking devices
+        def detect_network_device():
+            # Check common network device files
+            network_files = [
+                "/proc/net/wireless",  # Wireless devices
+                "/sys/class/net"       # Network interfaces
+            ]
+            
+            for file in network_files:
+                if os.path.exists(file):
+                    return True
+            
+            # Check for WiFi hotspot capabilities
+            try:
+                import subprocess
+                result = subprocess.run(["nmcli", "radio", "wifi"], capture_output=True, text=True)
+                if "enabled" in result.stdout.lower():
+                    return True
+            except:
+                pass
+                
+            return False
+        
+        # Get device type
+        device_type = detect_special_devices()
+        has_networking = detect_network_device()
+        
+        # Set appropriate platform details
+        if device_type == "android":
+            platform_name = "android"
+            if "64" in machine:
+                arch = "arm64"
+            else:
+                arch = "arm"
+            extension = ".apk"
+        elif device_type == "ios":
+            platform_name = "ios"
+            arch = "arm64"
+            extension = ".ipa"
+        elif device_type == "raspberrypi":
+            platform_name = "raspberry-pi"
+            if "64" in machine:
+                arch = "arm64"
+            else:
+                arch = "arm"
+            extension = ".deb"
+        elif device_type == "router":
+            platform_name = "router"
+            if "mips" in machine.lower():
+                arch = "mips"
+            elif "arm" in machine.lower():
+                arch = "arm"
+            else:
+                arch = "generic"
+            extension = ".ipk"  # OpenWrt package format
+        elif device_type == "wsl":
+            platform_name = "wsl"
+            if "amd64" in machine or "x86_64" in machine:
+                arch = "x64"
+            elif "arm64" in machine or "aarch64" in machine:
+                arch = "arm64"
+            else:
+                arch = "x86"
+            extension = ".AppImage"
+        elif system == "windows":
             platform_name = "windows"
             if "amd64" in machine or "x86_64" in machine:
                 arch = "x64"
@@ -72,6 +183,24 @@ class AutoUpdater:
             else:
                 arch = "x86"
             extension = ".AppImage"
+            
+            # Special case for different Linux distros
+            try:
+                # Check for Debian/Ubuntu
+                if os.path.exists("/etc/debian_version"):
+                    extension = ".deb"
+                # Check for Red Hat/Fedora/CentOS
+                elif os.path.exists("/etc/redhat-release"):
+                    extension = ".rpm"
+                # Check for Arch Linux
+                elif os.path.exists("/etc/arch-release"):
+                    extension = ".pkg.tar.zst"
+            except:
+                # Default to AppImage if detection fails
+                extension = ".AppImage"
+        
+        # Extra: Add network capability flag
+        networking_capable = has_networking
         
         return platform_name, arch, extension
     
