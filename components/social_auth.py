@@ -269,7 +269,8 @@ class SocialAuth:
             client_secret = st.text_input(
                 f"{provider_name} Client Secret",
                 value=current_config.get("client_secret", ""),
-                type="password"
+                type="password",
+                key=generate_widget_key("text_input", f"{selected_provider}_client_secret")
             )
             
             # Additional fields for Apple
@@ -278,24 +279,30 @@ class SocialAuth:
                 additional_fields["team_id"] = st.text_input(
                     "Team ID",
                     value=current_config.get("team_id", ""),
-                    help="Your Apple Developer Team ID"
+                    help="Your Apple Developer Team ID",
+                    key=generate_widget_key("text_input", "apple_team_id")
                 )
                 
                 additional_fields["key_id"] = st.text_input(
                     "Key ID",
                     value=current_config.get("key_id", ""),
-                    help="Your Sign in with Apple Key ID"
+                    help="Your Sign in with Apple Key ID",
+                    key=generate_widget_key("text_input", "apple_key_id")
                 )
                 
                 private_key = st.text_area(
                     "Private Key",
                     value=current_config.get("private_key", ""),
-                    help="Your Sign in with Apple private key (p8 file content)"
+                    help="Your Sign in with Apple private key (p8 file content)",
+                    key=generate_widget_key("text_area", "apple_private_key")
                 )
                 if private_key:
                     additional_fields["private_key"] = private_key
             
-            submitted = st.form_submit_button("Save Configuration")
+            submitted = st.form_submit_button(
+                "Save Configuration", 
+                key=generate_widget_key("form_submit", f"{selected_provider}_config")
+            )
             
             if submitted and client_id and client_secret:
                 credentials = {
