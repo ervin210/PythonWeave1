@@ -1993,6 +1993,8 @@ def run_quantum_circuit(circuit):
 
 def plot_quantum_results(counts):
     """Plot the results of a quantum circuit simulation"""
+    from utils.logo_protection import COPYRIGHT_OWNER
+    
     states = list(counts.keys())
     values = list(counts.values())
     
@@ -2003,11 +2005,48 @@ def plot_quantum_results(counts):
         title="Quantum Circuit Measurement Results"
     )
     
+    # Add copyright information to the plot
+    copyright_text = f"© {COPYRIGHT_OWNER}"
+    
+    # Try to add logo as image in the corner
+    try:
+        import base64
+        with open("assets/quantum_logo.jpg", "rb") as img_file:
+            encoded_image = base64.b64encode(img_file.read()).decode('utf-8')
+        
+        # Add logo as an image in the bottom right
+        logo_size = 0.1  # Size relative to the plot
+        logo_x = 0.95    # Position from right
+        logo_y = 0.05    # Position from bottom
+        
+        fig.add_layout_image(
+            dict(
+                source=f"data:image/jpg;base64,{encoded_image}",
+                xref="paper", yref="paper",
+                x=logo_x, y=logo_y,
+                sizex=logo_size, sizey=logo_size,
+                xanchor="right", yanchor="bottom"
+            )
+        )
+    except Exception as e:
+        # If logo addition fails, just continue without it
+        pass
+    
     fig.update_layout(
         xaxis_title="Quantum State",
         yaxis_title="Count",
         height=400,
         margin=dict(l=20, r=20, t=40, b=20),
+        annotations=[
+            dict(
+                text=copyright_text,
+                showarrow=False,
+                xref="paper", yref="paper",
+                x=0.01, y=0.01,  # Position in bottom left
+                xanchor="left", yanchor="bottom",
+                font=dict(size=10, color="gray")
+            )
+        ]
     )
     
     return fig

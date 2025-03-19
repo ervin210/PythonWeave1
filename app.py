@@ -1366,6 +1366,10 @@ def main():
     with col2:
         st.title("Quantum AI Experiment Dashboard")
         st.markdown("*Integrate quantum computing with your ML experiments*")
+        try:
+            from utils.logo_protection import COPYRIGHT_OWNER, COPYRIGHT_EMAIL
+            # Add copyright info in small text
+            st.markdown(f"<span style='font-size: 0.7em; color: gray;'>© {COPYRIGHT_OWNER}</span>", unsafe_allow_html=True)
     
     # Render sidebar for navigation
     render_sidebar()
@@ -1447,5 +1451,34 @@ def main():
         elif st.session_state.current_page == "sweep_details":
             render_sweep_details_page()
 
+# Add a function to render the footer with copyright
+def render_footer():
+    """Render the application footer with copyright information."""
+    try:
+        from utils.logo_protection import COPYRIGHT_OWNER, COPYRIGHT_EMAIL
+        st.markdown("---")
+        
+        # Create the copyright footer text
+        copyright_text = f"© {COPYRIGHT_OWNER}"
+        contact_text = f"Contact: {', '.join(COPYRIGHT_EMAIL)}"
+        year = "2025"
+        
+        # Render with HTML for better styling
+        st.markdown(
+            f"""
+            <div style="text-align: center; padding: 10px; color: gray; font-size: 0.8em;">
+                <p>{copyright_text} | {year} | All Rights Reserved</p>
+                <p>{contact_text}</p>
+                <p>Quantum AI Assistant is a proprietary software. Unauthorized use, reproduction, or distribution is prohibited.</p>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+    except Exception:
+        # If there's any error, render a simplified footer
+        st.markdown("---")
+        st.markdown("<div style='text-align: center; color: gray;'>© 2025 All Rights Reserved</div>", unsafe_allow_html=True)
+
 if __name__ == "__main__":
     main()
+    render_footer()
