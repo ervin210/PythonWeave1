@@ -1503,7 +1503,12 @@ def render_download_page():
     
     with col1:
         st.markdown("### Windows")
-        st.image("assets/windows_logo.png", width=100) if os.path.exists("assets/windows_logo.png") else st.markdown("🪟")
+        if os.path.exists("assets/windows_logo.svg"):
+            st.image("assets/windows_logo.svg", width=100)
+        elif os.path.exists("assets/windows_logo.png"):
+            st.image("assets/windows_logo.png", width=100)
+        else:
+            st.markdown("🪟")
         st.markdown("64-bit Windows 10/11")
         
         win_download_btn = st.button("Download for Windows", key="win_dl", use_container_width=True)
@@ -1524,7 +1529,12 @@ def render_download_page():
     
     with col2:
         st.markdown("### macOS")
-        st.image("assets/macos_logo.png", width=100) if os.path.exists("assets/macos_logo.png") else st.markdown("🍎")
+        if os.path.exists("assets/macos_logo.svg"):
+            st.image("assets/macos_logo.svg", width=100)
+        elif os.path.exists("assets/macos_logo.png"):
+            st.image("assets/macos_logo.png", width=100)
+        else:
+            st.markdown("🍎")
         st.markdown("macOS 11 or newer")
         
         mac_download_btn = st.button("Download for macOS", key="mac_dl", use_container_width=True)
@@ -1545,7 +1555,12 @@ def render_download_page():
     
     with col3:
         st.markdown("### Linux")
-        st.image("assets/linux_logo.png", width=100) if os.path.exists("assets/linux_logo.png") else st.markdown("🐧")
+        if os.path.exists("assets/linux_logo.svg"):
+            st.image("assets/linux_logo.svg", width=100)
+        elif os.path.exists("assets/linux_logo.png"):
+            st.image("assets/linux_logo.png", width=100)
+        else:
+            st.markdown("🐧")
         st.markdown("Ubuntu, Fedora, Debian")
         
         linux_download_btn = st.button("Download for Linux", key="linux_dl", use_container_width=True)
@@ -1638,13 +1653,23 @@ def render_download_page():
     
     with mobile_col1:
         st.markdown("### iOS")
-        st.image("assets/ios_logo.png", width=80) if os.path.exists("assets/ios_logo.png") else st.markdown("📱")
+        if os.path.exists("assets/ios_logo.svg"):
+            st.image("assets/ios_logo.svg", width=80)
+        elif os.path.exists("assets/ios_logo.png"):
+            st.image("assets/ios_logo.png", width=80)
+        else:
+            st.markdown("📱")
         st.markdown("Available on App Store")
         st.markdown("[Download on App Store](#)")
     
     with mobile_col2:
         st.markdown("### Android")
-        st.image("assets/android_logo.png", width=80) if os.path.exists("assets/android_logo.png") else st.markdown("🤖")
+        if os.path.exists("assets/android_logo.svg"):
+            st.image("assets/android_logo.svg", width=80)
+        elif os.path.exists("assets/android_logo.png"):
+            st.image("assets/android_logo.png", width=80)
+        else:
+            st.markdown("🤖")
         st.markdown("Available on Google Play")
         st.markdown("[Download on Google Play](#)")
     
