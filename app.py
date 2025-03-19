@@ -387,6 +387,10 @@ def render_sidebar():
         if st.sidebar.button("↕️ W&B Sync", use_container_width=True):
             st.session_state.current_page = "wandb_sync"
             
+        # Post to W&B button
+        if st.sidebar.button("📤 Post to W&B", use_container_width=True):
+            st.session_state.current_page = "post_to_wandb"
+            
         # Integration Hub button
         if st.sidebar.button("🔌 Integration Hub", use_container_width=True):
             st.session_state.current_page = "integration_hub"
@@ -1312,6 +1316,9 @@ def main():
         elif st.session_state.current_page == "wandb_sync":
             from components.wandb_sync import wandb_sync
             wandb_sync()
+        elif st.session_state.current_page == "post_to_wandb":
+            from components.post_to_wandb import post_to_wandb
+            post_to_wandb()
         elif st.session_state.current_page == "integration_hub":
             from components.integration_hub import integration_hub
             integration_hub()
