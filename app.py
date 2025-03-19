@@ -8,6 +8,9 @@ import tempfile
 from datetime import datetime
 import time
 
+# Import logo protection utilities
+from utils.logo_protection import setup_logo_protection, verify_logo_integrity
+
 # Define all utility functions directly in this file for now
 # This avoids circular import issues while we restructure the code
 
@@ -1207,6 +1210,12 @@ def render_sweep_details_page():
 
 # Main application
 def main():
+    # Set up logo protection system - ensure the logo can't be modified
+    setup_logo_protection()
+    
+    # Verify logo integrity before displaying
+    verify_logo_integrity()
+    
     # App header
     from PIL import Image
     
@@ -1218,7 +1227,11 @@ def main():
             logo = Image.open("assets/quantum_logo.jpg")
             st.image(logo, width=120)
         except FileNotFoundError:
-            pass
+            st.error("Logo not found. The system will attempt to restore it.")
+            # Attempt to restore the logo
+            if restore_logo():
+                st.success("Logo restored successfully!")
+                st.rerun()
     
     with col2:
         st.title("Quantum AI Experiment Dashboard")
