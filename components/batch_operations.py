@@ -17,6 +17,22 @@ import re
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 
+def create_zip_file(file_paths, zip_path):
+    """
+    Create a ZIP file from a list of file paths
+    
+    Args:
+        file_paths: List of file paths to include in the ZIP
+        zip_path: Path where the ZIP file will be saved
+    """
+    with zipfile.ZipFile(zip_path, 'w') as zipf:
+        for file_path in file_paths:
+            # Get just the filename from the path
+            file_name = os.path.basename(file_path)
+            zipf.write(file_path, arcname=file_name)
+    
+    return zip_path
+
 def batch_operations():
     """
     Perform batch operations across multiple runs
@@ -1574,7 +1590,7 @@ def batch_operations():
                                         if downloaded_files:
                                             # Create ZIP file of all downloaded files
                                             zip_path = os.path.join(tmp_dir, "wandb_artifacts.zip")
-                                            self.create_zip_file(downloaded_files, zip_path)
+                                            create_zip_file(downloaded_files, zip_path)
                                             
                                             # Provide download link for the ZIP file
                                             with open(zip_path, "rb") as f:
@@ -1609,34 +1625,28 @@ def batch_operations():
                                             api = wandb.Api()
                                             run = api.run(f"{project_id}/{run_id}")
                                             
-                                            with tempfile.TemporaryDirectory() as tmp_dir:
-                                                actual_path = os.path.join(tmp_dir, file_name)
+                                            with tempfile.TemporaryDirectory() as single_tmp_dir:
+                                                # Download the file
+                                                run.file(file_name).download(root=single_tmp_dir, replace=True)
+                                                actual_path = os.path.join(single_tmp_dir, file_name)
                                                 
                                                 if os.path.exists(actual_path):
-                                                    os.rename(actual_path, file_path)
-                                                    downloaded_files.append((file_path, f"{run_name}_{file_name}"))
-                                            except Exception as e:
-                                                st.error(f"Error downloading {file_name} from run {run_id}: {str(e)}")
-                                        
-                                        if downloaded_files:
-                                            # Create a zip file with all downloaded files
-                                            zip_path = os.path.join(tmp_dir, "batch_artifacts.zip")
-                                            with zipfile.ZipFile(zip_path, 'w') as zipf:
-                                                for file_path, arcname in downloaded_files:
-                                                    zipf.write(file_path, arcname=arcname)
-                                            
-                                            # Read the zip file and provide download link
-                                            with open(zip_path, "rb") as f:
-                                                zip_data = f.read()
-                                                
-                                            b64 = base64.b64encode(zip_data).decode()
-                                            href = f'<a href="data:application/zip;base64,{b64}" download="batch_artifacts.zip">Download ZIP File</a>'
-                                            st.markdown(href, unsafe_allow_html=True)
-                                            st.success(f"Successfully downloaded {len(downloaded_files)} files.")
-                                        else:
-                                            st.error("No files were successfully downloaded.")
-                                except Exception as e:
-                                    st.error(f"Error creating batch download: {str(e)}")
+                                                    # Provide direct download for this file
+                                                    with open(actual_path, "rb") as f:
+                                                        file_bytes = f.read()
+                                                        
+                                                    st.download_button(
+                                                        label=f"Download {file_name}",
+                                                        data=file_bytes,
+                                                        file_name=file_name,
+                                                        mime="application/octet-stream",
+                                                        key=f"dl_btn_{file_name}_{run_id}"
+                                                    )
+                                                    st.success(f"Successfully downloaded {file_name}")
+                                                else:
+                                                    st.error(f"File {file_name} not found after download")
+                                        except Exception as e:
+                                            st.error(f"Error downloading {file_name} from run {run_id}: {str(e)}")
                     else:
                         st.info("No artifacts match the selected filters.")
                 else:
