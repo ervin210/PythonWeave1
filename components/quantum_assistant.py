@@ -51,13 +51,18 @@ def quantum_assistant():
     """)
     
     # Assistant tabs
-    assistant_tab, quantum_tab, insights_tab = st.tabs(["Assistant", "Quantum Computing", "AI Insights"])
+    assistant_tab, quantum_tab, security_tab, insights_tab = st.tabs([
+        "Assistant", "Quantum Computing", "Quantum Security", "AI Insights"
+    ])
     
     with assistant_tab:
         render_assistant_interface()
         
     with quantum_tab:
         render_quantum_tools()
+    
+    with security_tab:
+        render_quantum_security()
         
     with insights_tab:
         render_ai_insights()
@@ -100,6 +105,7 @@ def render_assistant_interface():
 def generate_assistant_response(prompt):
     """
     Generate a response to the user's query based on their W&B data
+    Enhanced with quantum security and cybersecurity capabilities
     
     Args:
         prompt: User's query text
@@ -121,18 +127,85 @@ def generate_assistant_response(prompt):
             run_id = st.session_state.selected_run["id"]
             project_info = f"for run {run_id} in project {project_id}"
     
-    # Simple keyword matching for demo purposes
-    # In a real system, you would use NLP/LLM here
+    # Advanced response generation with additional topics
     prompt_lower = prompt.lower()
     
-    if "compare" in prompt_lower and "runs" in prompt_lower:
+    # Quantum Security & Cybersecurity responses
+    if "quantum security" in prompt_lower or ("quantum" in prompt_lower and "security" in prompt_lower):
+        return """
+        Quantum security leverages quantum computing principles to enhance data protection:
+        
+        1. Quantum Key Distribution (QKD) uses quantum properties for secure communication
+        2. Post-quantum cryptography designs algorithms resistant to quantum attacks
+        3. Quantum-resistant algorithms protect against Shor's algorithm threats
+        
+        I can help simulate quantum security protocols in the Quantum Computing tab.
+        """
+    
+    elif "quantum cryptography" in prompt_lower:
+        return """
+        Quantum cryptography uses quantum mechanical properties to perform cryptographic tasks:
+        
+        1. BB84 Protocol: First QKD protocol using polarized photons
+        2. E91 Protocol: Uses quantum entanglement for key distribution
+        3. Three-stage protocol: Provides security without entanglement
+        
+        Would you like me to help you implement a quantum cryptography simulation?
+        """
+    
+    elif "quantum cybersecurity" in prompt_lower or ("cybersecurity" in prompt_lower):
+        return """
+        Quantum computing impacts cybersecurity in several ways:
+        
+        1. Quantum computers can break RSA and ECC encryption using Shor's algorithm
+        2. Quantum-resistant algorithms are being developed for post-quantum security
+        3. Quantum random number generators provide true randomness for security
+        4. Quantum sensing can detect eavesdropping attempts in communication channels
+        
+        I can assist in evaluating your security protocols against quantum threats.
+        """
+        
+    elif "shor's algorithm" in prompt_lower or "shor algorithm" in prompt_lower:
+        return """
+        Shor's algorithm is a quantum algorithm that efficiently factors large integers:
+        
+        1. It can break RSA encryption by finding prime factors
+        2. Runs in polynomial time on quantum computers (unlike classical algorithms)
+        3. Demonstrates quantum computing's threat to current cryptographic systems
+        
+        I can explain how this algorithm works and its implications for cybersecurity.
+        """
+        
+    elif "quantum machine learning" in prompt_lower or "qml" in prompt_lower:
+        return """
+        Quantum Machine Learning (QML) combines quantum computing with machine learning:
+        
+        1. Quantum Neural Networks use quantum circuits for neural network operations
+        2. Variational Quantum Classifiers perform classification tasks on quantum hardware
+        3. Quantum kernel methods enhance support vector machines
+        4. Quantum GANs leverage quantum advantages for generative tasks
+        
+        I can help you analyze QML experiments and integrate them with classical ML workflows.
+        """
+    
+    # Original responses for standard topics
+    elif "compare" in prompt_lower and "runs" in prompt_lower:
         return f"I can help you compare runs {project_info}. Use the Compare Runs feature in the Runs page to select multiple runs and analyze their performance on different metrics."
     
     elif "best" in prompt_lower and ("model" in prompt_lower or "run" in prompt_lower):
         return f"To find the best model {project_info}, I recommend looking at the Sweeps page where you can see which hyperparameters led to the best performance metrics."
     
     elif "quantum" in prompt_lower:
-        return "I can help you apply quantum computing techniques to your ML experiments. Check out the Quantum Computing tab for quantum circuit simulation and integration with your experiment data."
+        return """
+        I can help you apply quantum computing techniques to your ML experiments:
+        
+        1. Quantum circuit simulation for algorithm testing
+        2. Integration with quantum hardware via IBM Quantum
+        3. Quantum feature maps for enhanced data representation
+        4. Variational quantum algorithms for optimization tasks
+        
+        Check out the Quantum Computing tab for hands-on tools.
+        """
     
     elif "optimize" in prompt_lower or "hyperparameter" in prompt_lower:
         return "For hyperparameter optimization, I recommend using W&B Sweeps which provides Bayesian, grid and random search methods. You can view your sweep results in the Sweeps page."
@@ -143,8 +216,30 @@ def generate_assistant_response(prompt):
     elif "export" in prompt_lower or "download" in prompt_lower:
         return "You can export your experiment data using the Export buttons on various pages. This allows you to download metrics, parameters, and results as CSV files for further analysis."
     
+    elif "error" in prompt_lower or "issue" in prompt_lower or "problem" in prompt_lower:
+        return f"""
+        I can help troubleshoot issues with your experiments {project_info}:
+        
+        1. Check error logs in the run details page
+        2. Analyze system resource usage (GPU, memory)
+        3. Validate data preprocessing steps
+        4. Review model architecture for potential issues
+        
+        Would you like me to help diagnose a specific error?
+        """
+    
+    # Default response with enhanced capabilities
     else:
-        return f"I'm your quantum AI assistant for W&B experiments {project_info}. I can help you analyze runs, compare models, optimize hyperparameters, and apply quantum computing techniques to your ML workflows. Just ask me specific questions about your experiments."
+        return f"""
+        I'm your quantum AI assistant for W&B experiments {project_info}. I can help with:
+        
+        1. Analyzing ML experiments and comparing runs
+        2. Quantum computing simulations and algorithm implementation
+        3. Quantum security and cybersecurity assessment
+        4. Troubleshooting issues and optimizing performance
+        
+        Just ask me specific questions about your experiments or quantum computing needs.
+        """
 
 def render_quantum_tools():
     """
@@ -1192,6 +1287,461 @@ def create_data_encoding_circuit(encoding_type, num_features):
     qc.measure_all()
     
     return qc
+
+def render_quantum_security():
+    """
+    Renders quantum security and cybersecurity capabilities
+    """
+    st.subheader("Quantum Security & Cybersecurity")
+    
+    st.markdown("""
+    Evaluate and enhance your security posture against quantum threats with these advanced tools.
+    Quantum computing poses both challenges and opportunities for cybersecurity.
+    """)
+    
+    # Create tabs for different security tools
+    encryption_tab, risk_tab, qrng_tab = st.tabs([
+        "Quantum-Safe Encryption", 
+        "Quantum Risk Assessment",
+        "Quantum Random Number Generator"
+    ])
+    
+    with encryption_tab:
+        st.subheader("Quantum-Safe Encryption Analysis")
+        
+        st.markdown("""
+        Evaluate the quantum resistance of different encryption algorithms against quantum attacks.
+        Quantum computers threaten traditional encryption through Shor's algorithm and Grover's algorithm.
+        """)
+        
+        # Encryption algorithm selection
+        algorithm_type = st.selectbox(
+            "Select encryption algorithm to evaluate",
+            ["RSA (2048-bit)", "ECC (P-256)", "AES-256", "Lattice-based (NTRU)", "Hash-based (SPHINCS+)", "Custom"]
+        )
+        
+        # Display algorithm details and quantum vulnerability
+        if algorithm_type == "RSA (2048-bit)":
+            st.warning("⚠️ **High Risk**: Vulnerable to Shor's algorithm")
+            
+            st.markdown("""
+            **RSA-2048 Assessment:**
+            - **Quantum Security Level**: 0 bits (broken by quantum computers)
+            - **Estimated Qubits Needed**: ~4,000 logical qubits
+            - **Time to Break (Est.)**: Hours on a fault-tolerant quantum computer
+            - **Recommendation**: Migrate to quantum-resistant alternatives
+            """)
+            
+            # Time estimates chart
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=["Classical Supercomputer", "Future Quantum Computer"],
+                y=[2.7e19, 8],
+                text=["~1 billion years", "~8 hours"],
+                textposition="auto",
+                marker_color=["green", "red"]
+            ))
+            fig.update_layout(
+                title="Estimated Time to Break RSA-2048",
+                yaxis_type="log",
+                yaxis_title="Hours (log scale)"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+        elif algorithm_type == "ECC (P-256)":
+            st.warning("⚠️ **High Risk**: Vulnerable to Shor's algorithm")
+            
+            st.markdown("""
+            **ECC P-256 Assessment:**
+            - **Quantum Security Level**: 0 bits (broken by quantum computers)
+            - **Estimated Qubits Needed**: ~2,300 logical qubits
+            - **Time to Break (Est.)**: Hours on a fault-tolerant quantum computer
+            - **Recommendation**: Migrate to quantum-resistant alternatives
+            """)
+            
+            # Time estimates chart
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=["Classical Supercomputer", "Future Quantum Computer"],
+                y=[1.1e13, 4],
+                text=["~1.3 million years", "~4 hours"],
+                textposition="auto",
+                marker_color=["green", "red"]
+            ))
+            fig.update_layout(
+                title="Estimated Time to Break ECC P-256",
+                yaxis_type="log",
+                yaxis_title="Hours (log scale)"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+        elif algorithm_type == "AES-256":
+            st.success("✅ **Low Risk**: Resistant to quantum attacks with sufficient key size")
+            
+            st.markdown("""
+            **AES-256 Assessment:**
+            - **Quantum Security Level**: ~128 bits (with Grover's algorithm)
+            - **Estimated Qubits Needed**: Thousands for meaningful speedup
+            - **Time to Break (Est.)**: Still exponential, but reduced security margin
+            - **Recommendation**: Increase key size to AES-512 for long-term security
+            """)
+            
+            # Security level chart
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=["Classical Security", "Quantum Security"],
+                y=[256, 128],
+                text=["256 bits", "128 bits"],
+                textposition="auto",
+                marker_color=["green", "yellow"]
+            ))
+            fig.update_layout(
+                title="AES-256 Security Level Comparison",
+                yaxis_title="Security Level (bits)"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+        elif algorithm_type == "Lattice-based (NTRU)":
+            st.success("✅ **Low Risk**: Believed to be quantum-resistant")
+            
+            st.markdown("""
+            **NTRU Assessment:**
+            - **Quantum Security Level**: ~128+ bits (believed resistant to quantum attacks)
+            - **Security Basis**: Hardness of solving certain lattice problems
+            - **Standardization Status**: Finalist in NIST post-quantum standardization
+            - **Recommendation**: Suitable for quantum-resistant implementations
+            """)
+            
+            # Performance comparison
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=["Key Size", "Ciphertext Size", "Encryption Speed", "Decryption Speed"],
+                y=[1, 1.2, 0.7, 0.8],
+                text=["1x", "1.2x", "0.7x", "0.8x"],
+                textposition="auto",
+                marker_color="blue",
+                name="Relative to RSA (smaller is better)"
+            ))
+            fig.update_layout(
+                title="NTRU Performance vs. RSA (Normalized)",
+                yaxis_title="Relative Performance"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+        elif algorithm_type == "Hash-based (SPHINCS+)":
+            st.success("✅ **Low Risk**: Believed to be quantum-resistant")
+            
+            st.markdown("""
+            **SPHINCS+ Assessment:**
+            - **Quantum Security Level**: ~128+ bits (believed resistant to quantum attacks)
+            - **Security Basis**: Hardness of finding hash function collisions
+            - **Standardization Status**: Finalist in NIST post-quantum standardization
+            - **Recommendation**: Suitable for quantum-resistant digital signatures
+            """)
+            
+            # Performance comparison
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=["Signature Size", "Key Generation", "Signing Speed", "Verification Speed"],
+                y=[20, 0.3, 15, 0.5],
+                text=["20x", "0.3x", "15x", "0.5x"],
+                textposition="auto",
+                marker_color="blue",
+                name="Relative to RSA (smaller is better)"
+            ))
+            fig.update_layout(
+                title="SPHINCS+ Performance vs. RSA (Normalized)",
+                yaxis_title="Relative Performance"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+        else:  # Custom
+            st.info("Enter parameters for custom algorithm analysis")
+            
+            custom_security = st.number_input("Classical Security Level (bits)", min_value=1, max_value=512, value=256)
+            quantum_speedup = st.slider("Estimated Quantum Speedup Factor", min_value=1, max_value=100, value=2)
+            
+            quantum_security = custom_security / (2**quantum_speedup)
+            
+            st.markdown(f"""
+            **Custom Algorithm Assessment:**
+            - **Classical Security Level**: {custom_security} bits
+            - **Estimated Quantum Security Level**: {quantum_security:.2f} bits
+            - **Quantum Speedup Factor**: {quantum_speedup}x
+            """)
+            
+            if quantum_security < 80:
+                st.error("⚠️ **Critical Risk**: Security level too low for quantum resistance")
+            elif quantum_security < 128:
+                st.warning("🔶 **Moderate Risk**: May need stronger parameters for long-term security")
+            else:
+                st.success("✅ **Low Risk**: Likely resistant to quantum attacks")
+        
+        # Migration recommendations
+        st.subheader("Migration Recommendations")
+        st.markdown("""
+        **NIST Recommended Post-Quantum Algorithms:**
+        
+        1. **Key Encapsulation Mechanisms (KEM):**
+           - CRYSTALS-Kyber (primary recommendation)
+           - NTRU and SABER (alternatives)
+        
+        2. **Digital Signatures:**
+           - CRYSTALS-Dilithium (primary recommendation)
+           - FALCON and SPHINCS+ (alternatives)
+        
+        3. **Implementation Considerations:**
+           - Crypto-agility: Support multiple algorithms
+           - Hybrid approaches: Combine classical + post-quantum
+           - Regular security assessments against quantum advances
+        """)
+    
+    with risk_tab:
+        st.subheader("Quantum Risk Assessment")
+        
+        st.markdown("""
+        Evaluate your organization's risk exposure to quantum computing threats
+        and develop a quantum-ready security strategy.
+        """)
+        
+        # Risk assessment form
+        with st.form("risk_assessment_form"):
+            st.markdown("#### Security Infrastructure Assessment")
+            
+            encryption_types = st.multiselect(
+                "Select encryption algorithms currently in use:",
+                ["RSA", "ECC", "AES", "3DES", "Blowfish", "ChaCha20", "Post-Quantum Algorithms"],
+                default=["RSA", "AES"]
+            )
+            
+            key_exchange = st.multiselect(
+                "Select key exchange methods in use:",
+                ["Diffie-Hellman", "ECDH", "RSA key exchange", "PSK", "Quantum Key Distribution", "Post-Quantum Methods"],
+                default=["Diffie-Hellman", "ECDH"]
+            )
+            
+            data_lifespan = st.slider(
+                "How long must your data remain secure? (years)",
+                min_value=1,
+                max_value=50,
+                value=10
+            )
+            
+            st.markdown("#### Quantum Threat Timeline")
+            
+            q_timeline = st.slider(
+                "When do you expect cryptographically-relevant quantum computers? (years from now)",
+                min_value=1,
+                max_value=30,
+                value=10
+            )
+            
+            migration_time = st.slider(
+                "Estimated time needed to migrate to quantum-resistant algorithms (years)",
+                min_value=1,
+                max_value=10,
+                value=3
+            )
+            
+            st.markdown("#### Critical Systems")
+            
+            critical_systems = st.multiselect(
+                "Select systems with highest security requirements:",
+                ["Financial transactions", "Customer data", "Authentication systems", 
+                 "Cloud services", "IoT devices", "Healthcare data", "Government/Defense"],
+                default=["Financial transactions", "Customer data"]
+            )
+            
+            submit_button = st.form_submit_button("Analyze Quantum Risk")
+        
+        # If form is submitted, show risk analysis
+        if submit_button:
+            st.subheader("Quantum Risk Analysis Results")
+            
+            # Calculate risk score
+            risk_score = 0
+            
+            # Add risk for vulnerable algorithms
+            if "RSA" in encryption_types: risk_score += 30
+            if "ECC" in encryption_types: risk_score += 25
+            if "Diffie-Hellman" in key_exchange: risk_score += 15
+            if "ECDH" in key_exchange: risk_score += 15
+            if "RSA key exchange" in key_exchange: risk_score += 20
+            
+            # Reduce risk for quantum-safe algorithms
+            if "Post-Quantum Algorithms" in encryption_types: risk_score -= 20
+            if "AES" in encryption_types and "3DES" not in encryption_types: risk_score -= 5
+            if "Quantum Key Distribution" in key_exchange: risk_score -= 10
+            if "Post-Quantum Methods" in key_exchange: risk_score -= 15
+            
+            # Adjust for timeline factors
+            if data_lifespan > q_timeline: risk_score += 25
+            if q_timeline - migration_time < 5: risk_score += 15
+            
+            # Critical systems factor
+            critical_count = len(critical_systems)
+            risk_score += critical_count * 5
+            
+            # Normalize score (0-100)
+            risk_score = max(0, min(100, risk_score))
+            
+            # Display risk gauge
+            fig = go.Figure(go.Indicator(
+                mode = "gauge+number",
+                value = risk_score,
+                domain = {'x': [0, 1], 'y': [0, 1]},
+                title = {'text': "Quantum Risk Score"},
+                gauge = {
+                    'axis': {'range': [0, 100]},
+                    'bar': {'color': "darkblue"},
+                    'steps': [
+                        {'range': [0, 40], 'color': "green"},
+                        {'range': [40, 70], 'color': "gold"},
+                        {'range': [70, 100], 'color': "red"}
+                    ],
+                    'threshold': {
+                        'line': {'color': "red", 'width': 4},
+                        'thickness': 0.75,
+                        'value': risk_score
+                    }
+                }
+            ))
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Risk timeline
+            st.subheader("Quantum Threat Timeline")
+            
+            years = list(range(0, max(data_lifespan, q_timeline + 5) + 1))
+            security_margin = [100 if y < q_timeline - migration_time else 
+                              max(0, 100 - (y - (q_timeline - migration_time)) * 100 / migration_time)
+                              for y in years]
+            
+            timeline_df = pd.DataFrame({
+                'Year': [f"Now + {y}yr" for y in years],
+                'Security Margin (%)': security_margin
+            })
+            
+            fig = px.line(timeline_df, x='Year', y='Security Margin (%)', markers=True)
+            fig.add_vline(x=f"Now + {q_timeline}yr", line_dash="dash", line_color="red",
+                         annotation_text="Est. Cryptographically-Relevant Quantum Computer")
+            fig.add_vline(x=f"Now + {data_lifespan}yr", line_dash="dash", line_color="blue",
+                         annotation_text="Required Data Protection Period")
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Recommendations based on risk score
+            st.subheader("Recommendations")
+            
+            if risk_score < 40:
+                st.success("**Low Quantum Risk**")
+                st.markdown("""
+                Your current security posture appears well-positioned for the quantum transition:
+                
+                1. **Monitor Developments**: Continue tracking quantum computing advancements
+                2. **Crypto-Agility**: Maintain ability to quickly update cryptographic algorithms
+                3. **Selective Migration**: Begin transitioning most critical systems to post-quantum algorithms
+                """)
+            elif risk_score < 70:
+                st.warning("**Moderate Quantum Risk**")
+                st.markdown("""
+                Your organization faces significant risks from quantum computing advances:
+                
+                1. **Accelerate Planning**: Develop a detailed quantum security transition plan
+                2. **Begin Migration**: Start implementing hybrid classical/post-quantum solutions
+                3. **Risk Assessment**: Identify and prioritize vulnerable systems and data
+                4. **Timeline Revision**: Consider accelerating your migration timeline
+                """)
+            else:
+                st.error("**High Quantum Risk**")
+                st.markdown("""
+                Your organization is highly vulnerable to quantum computing threats:
+                
+                1. **Urgent Action Required**: Immediate attention to quantum threats is necessary
+                2. **Critical System Protection**: Prioritize protecting systems with long-term security requirements
+                3. **Comprehensive Migration**: Develop and implement a full transition to quantum-resistant algorithms
+                4. **Expert Consultation**: Consider engaging with quantum security specialists
+                5. **Defensive Depth**: Implement additional security layers to protect vulnerable encryption
+                """)
+
+    with qrng_tab:
+        st.subheader("Quantum Random Number Generator")
+        
+        st.markdown("""
+        Generate true random numbers based on quantum principles. These random numbers
+        are useful for cryptographic applications, simulations, and statistical sampling.
+        """)
+        
+        # Options for QRNG
+        num_bits = st.slider("Number of random bits to generate", 8, 256, 128, step=8)
+        output_format = st.selectbox("Output format", ["Binary", "Hexadecimal", "Decimal", "Base64"])
+        
+        # Generate button
+        if st.button("Generate Quantum Random Numbers"):
+            with st.spinner("Accessing quantum hardware..."):
+                # Create a quantum circuit for random number generation
+                qrng_circuit = QuantumCircuit(num_bits, num_bits)
+                
+                # Apply Hadamard gates to create superposition
+                for i in range(num_bits):
+                    qrng_circuit.h(i)
+                
+                # Measure all qubits
+                qrng_circuit.measure_all()
+                
+                # Run the circuit
+                try:
+                    # Display the circuit
+                    circuit_img = circuit_to_image(qrng_circuit)
+                    st.subheader("QRNG Circuit")
+                    st.image(circuit_img, width=700)
+                    
+                    # Simulate the circuit
+                    simulator = Aer.get_backend('qasm_simulator')
+                    job = simulator.run(qrng_circuit, shots=1)
+                    result = job.result()
+                    counts = result.get_counts()
+                    
+                    # Extract random bits
+                    random_bits = list(counts.keys())[0]
+                    
+                    # Convert to requested format
+                    if output_format == "Binary":
+                        output_value = random_bits
+                    elif output_format == "Hexadecimal":
+                        output_value = hex(int(random_bits, 2))[2:]
+                    elif output_format == "Decimal":
+                        output_value = str(int(random_bits, 2))
+                    else:  # Base64
+                        import base64
+                        # Convert binary string to bytes and then to base64
+                        bytes_val = int(random_bits, 2).to_bytes((len(random_bits) + 7) // 8, byteorder='big')
+                        output_value = base64.b64encode(bytes_val).decode('utf-8')
+                    
+                    # Show results
+                    st.subheader("Generated Quantum Random Value")
+                    st.code(output_value)
+                    
+                    # Show quantum properties
+                    st.subheader("Quantum Properties")
+                    st.markdown(f"""
+                    **Entropy Source**: Quantum measurement of superposition states
+                    
+                    **Bits Generated**: {num_bits} bits
+                    
+                    **True Randomness**: Unlike classical random number generators which are deterministic,
+                    quantum random numbers derive their randomness from inherent quantum unpredictability.
+                    
+                    **Applications**:
+                    - Cryptographic key generation
+                    - Secure communications
+                    - Monte Carlo simulations
+                    - Statistical sampling
+                    - Gaming and lottery systems
+                    """)
+                    
+                except Exception as e:
+                    st.error(f"Error generating quantum random numbers: {str(e)}")
 
 def render_ai_insights():
     """
