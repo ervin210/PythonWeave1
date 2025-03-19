@@ -364,17 +364,17 @@ def social_login_page():
 def social_auth_callback_handler():
     """Handle OAuth callback in the main app.py"""
     # Check if this is a callback from OAuth provider
-    query_params = st.experimental_get_query_params()
+    query_params = st.query_params
     
     if "code" in query_params and "state" in query_params:
-        code = query_params["code"][0]
-        state = query_params["state"][0]
+        code = query_params["code"]
+        state = query_params["state"]
         
         # Verify state to prevent CSRF attacks
         if state != st.session_state.social_auth_state:
             st.error("Invalid state parameter. Authentication failed.")
             # Clear query parameters
-            st.experimental_set_query_params()
+            st.query_params.clear()
             return
         
         # Get the provider from session state
@@ -382,7 +382,7 @@ def social_auth_callback_handler():
         if not provider:
             st.error("Authentication provider not found. Please try again.")
             # Clear query parameters
-            st.experimental_set_query_params()
+            st.query_params.clear()
             return
         
         # Process the authentication
@@ -437,7 +437,7 @@ def social_auth_callback_handler():
         st.session_state.oauth_provider = None
         
         # Clear query parameters
-        st.experimental_set_query_params()
+        st.query_params.clear()
         
         # Rerun the app to remove URL parameters
         st.rerun()
