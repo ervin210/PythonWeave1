@@ -530,10 +530,15 @@ def run_quantum_circuit(circuit):
             # Save token and try to authenticate
             st.session_state.ibmq_token = ibmq_token
             
-            # Try to load IBMQ account
+            # Try to authenticate with QiskitRuntimeService
             try:
-                IBMQ.save_account(ibmq_token, overwrite=True)
-                IBMQ.load_account()
+                from qiskit_ibm_runtime import QiskitRuntimeService
+                
+                # Save the token for future use
+                QiskitRuntimeService.save_account(channel="ibm_quantum", token=ibmq_token, overwrite=True)
+                
+                # Test the connection by creating a service instance
+                service = QiskitRuntimeService(channel="ibm_quantum")
                 st.success("Successfully connected to IBM Quantum!")
                 st.rerun()
             except Exception as e:
@@ -542,18 +547,22 @@ def run_quantum_circuit(circuit):
         
         # Use simulator while waiting for token
         st.warning("Using local simulator until IBM Quantum authentication is completed")
-        backend = Aer.get_backend('qasm_simulator')
+        from qiskit_aer import AerSimulator
+        backend = AerSimulator()
         job = backend.run(circuit, shots=1024)
         result = job.result()
         return result
     else:
         # We have IBMQ credentials, try to use real quantum computer
         try:
-            provider = IBMQ.load_account()
+            from qiskit_ibm_runtime import QiskitRuntimeService
+            
+            # Create service instance
+            service = QiskitRuntimeService(channel="ibm_quantum")
             
             # Show available backends
-            available_backends = provider.backends()
-            backend_names = [b.name() for b in available_backends]
+            available_backends = service.backends()
+            backend_names = [backend.name for backend in available_backends]
             
             # Let user choose a backend
             if 'quantum_backend' not in st.session_state:
@@ -566,25 +575,55 @@ def run_quantum_circuit(circuit):
                 
                 # Use simulator while waiting
                 st.warning("Using local simulator until backend selection is confirmed")
-                backend = Aer.get_backend('qasm_simulator')
+                from qiskit_aer import AerSimulator
+                backend = AerSimulator()
                 job = backend.run(circuit, shots=1024)
                 result = job.result()
                 return result
             else:
-                # Use the selected backend
+                # Use the selected backend with QiskitRuntimeService
                 selected_backend = st.session_state.quantum_backend
-                real_backend = provider.get_backend(selected_backend)
+                
+                # Get the backend from the service
+                real_backend = service.backend(selected_backend)
                 
                 st.info(f"Running on IBM Quantum backend: {selected_backend}")
                 with st.spinner("Running on real quantum hardware, this may take some time..."):
-                    job = qiskit.execute(circuit, real_backend, shots=1024)
+                    # For Qiskit 1.0+, use the Sampler primitive
+                    from qiskit_ibm_runtime import Sampler
+                    
+                    # Create a sampler instance
+                    sampler = Sampler(backend=real_backend)
+                    
+                    # Run the sampler
+                    job = sampler.run(circuit, shots=1024)
                     result = job.result()
+                    
+                    # Convert to format compatible with the rest of the code
+                    from qiskit.result import Result
+                    counts = result.quasi_dists[0]
+                    
+                    # Convert to proper counts format
+                    integer_counts = {}
+                    for bitstring, probability in counts.items():
+                        # Convert integer to binary string and format it
+                        n_bits = circuit.num_clbits
+                        binary = format(bitstring, f'0{n_bits}b')
+                        integer_counts[binary] = int(probability * 1024)
+                    
+                    # Create a result object compatible with the rest of the code
+                    class CustomResult:
+                        def get_counts(self, _=None):
+                            return integer_counts
+                    
+                    result = CustomResult()
                 st.success("Quantum computation completed successfully!")
                 return result
         except Exception as e:
             st.error(f"Error connecting to IBM Quantum: {str(e)}")
             st.warning("Falling back to local simulator")
-            backend = Aer.get_backend('qasm_simulator')
+            from qiskit_aer import AerSimulator
+            backend = AerSimulator()
             job = backend.run(circuit, shots=1024)
             result = job.result()
             return result

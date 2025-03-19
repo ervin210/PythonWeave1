@@ -43,10 +43,15 @@ def integration_hub():
             st.success("✅ Connected to Weights & Biases")
             
             # Get user info
-            api = wandb.Api()
-            username = api.viewer()['entity']
-            
-            st.markdown(f"**Current User**: {username}")
+            try:
+                api = wandb.Api()
+                viewer_info = api.viewer()
+                username = viewer_info.entity
+                
+                st.markdown(f"**Current User**: {username}")
+            except Exception as e:
+                st.markdown("**Current User**: Connected (user details unavailable)")
+                st.error(f"Error retrieving user details: {str(e)}")
             
             # Show connected projects
             if st.session_state.selected_project:
