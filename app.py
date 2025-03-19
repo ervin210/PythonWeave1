@@ -1413,7 +1413,7 @@ def main():
                 render_user_management()
             
             with auth_tabs[1]:
-                social_login_page(context="tab_view")
+                social_login_page(context="main_app_tab_view")
     else:
         # User is fully authenticated - show appropriate pages
         if st.session_state.current_page == "user_management":

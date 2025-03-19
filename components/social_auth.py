@@ -340,11 +340,8 @@ class SocialAuth:
             config = self.providers[provider]
             col = cols[i % len(cols)]
             
-            # Generate a truly unique key by combining multiple factors
-            current_time = str(int(time.time() * 1000))
-            random_suffix = str(random.randint(10000, 99999))
-            # Ensure the key is unique across renders by including time and random components
-            btn_key = f"social_login_{button_prefix}_{provider}_{current_time}_{random_suffix}"
+            # Use the proper key generator utility for guaranteed uniqueness
+            btn_key = generate_widget_key("button", f"{button_prefix}_{provider}")
             
             with col:
                 if col.button(
@@ -392,10 +389,8 @@ def social_login_page(context="main"):
     
     if st.session_state.get("user_authenticated", False):
         st.success("You're already logged in!")
-        # Generate a truly unique key similar to social login buttons
-        current_time = str(int(time.time() * 1000))
-        random_suffix = str(random.randint(10000, 99999))
-        dashboard_btn_key = f"continue_dashboard_{context}_{current_time}_{random_suffix}"
+        # Use the proper key generator utility for guaranteed uniqueness
+        dashboard_btn_key = generate_widget_key("button", f"continue_dashboard_{context}")
         if st.button("Continue to Dashboard", key=dashboard_btn_key):
             st.rerun()
 

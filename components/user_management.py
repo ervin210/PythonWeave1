@@ -463,8 +463,8 @@ def render_login_form():
         # Initialize social auth state if needed
         if "social_auth_state" not in st.session_state:
             st.session_state.social_auth_state = str(uuid.uuid4())
-        # Show social login buttons
-        social_login_page()
+        # Show social login buttons with a unique context for this instance
+        social_login_page(context="user_management_tab")
 
 def render_user_management():
     """Render the user management interface"""
