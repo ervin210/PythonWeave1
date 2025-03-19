@@ -42,6 +42,25 @@ def initialize_session_state():
     
     if "projects" not in st.session_state:
         st.session_state.projects = []
+    
+    # Subscription-related state
+    if "subscription_active" not in st.session_state:
+        st.session_state.subscription_active = False
+    
+    if "current_plan" not in st.session_state:
+        st.session_state.current_plan = None
+    
+    if "subscription_end_date" not in st.session_state:
+        st.session_state.subscription_end_date = None
+    
+    if "payment_info" not in st.session_state:
+        st.session_state.payment_info = {}
+    
+    if "subscription_history" not in st.session_state:
+        st.session_state.subscription_history = []
+    
+    if "show_subscription_preview" not in st.session_state:
+        st.session_state.show_subscription_preview = False
 
 def authenticate_wandb(api_key):
     """Authenticate with Weights & Biases API."""
@@ -66,6 +85,10 @@ def logout_wandb():
     st.session_state.run_data = None
     st.session_state.sweep_data = None
     st.session_state.projects = []
+    
+    # Clear subscription data on logout (but keep active subscriptions)
+    st.session_state.show_subscription_preview = False
+    
     wandb.logout()
 
 def get_projects():
