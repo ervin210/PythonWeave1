@@ -18,9 +18,10 @@ import threading
 # Version information - will be used to check for updates
 CURRENT_VERSION = "1.0.0"
 
-# GitHub releases URL for checking updates - replace with your actual repository
-UPDATE_CHECK_URL = "https://api.github.com/repos/quantum-ai-assistant/quantum-ai-assistant/releases/latest"
-DOWNLOAD_BASE_URL = "https://github.com/quantum-ai-assistant/releases/download"
+# For development/testing use a mock endpoint or handle gracefully
+# In production, these would point to your actual repository
+UPDATE_CHECK_URL = "https://example.com/api/check-updates"  # Mock URL for development
+DOWNLOAD_BASE_URL = "https://example.com/downloads"         # Mock URL for development
 
 # How often to check for updates (in seconds)
 UPDATE_CHECK_INTERVAL = 86400  # 24 hours
@@ -94,6 +95,14 @@ class AutoUpdater:
         self.last_checked = current_time
         
         try:
+            # Only for development - if using example.com, simulate no updates 
+            if "example.com" in UPDATE_CHECK_URL:
+                print("Development mode: Using mock update check")
+                self.update_available = False
+                self.latest_version = CURRENT_VERSION
+                # No need to make actual requests to example.com
+                return (self.update_available, self.latest_version, self.update_url, self.update_notes)
+                
             # Create a user agent for the request
             headers = {
                 'User-Agent': f'QuantumAIAssistant/{CURRENT_VERSION}'
@@ -109,35 +118,47 @@ class AutoUpdater:
             
             # Convert versions to tuples for comparison (e.g., "1.2.3" -> (1, 2, 3))
             current_parts = tuple(map(int, CURRENT_VERSION.split('.')))
-            latest_parts = tuple(map(int, latest_version.split('.')))
-            
-            # If we have a new version
-            if latest_parts > current_parts:
-                self.update_available = True
-                self.latest_version = latest_version
+            try:
+                latest_parts = tuple(map(int, latest_version.split('.')))
                 
-                # Find the right asset for this platform
-                asset_name = f"QuantumAIAssistant-{self.platform_name}-{self.arch}{self.extension}"
-                for asset in data.get('assets', []):
-                    if asset['name'] == asset_name:
-                        self.update_url = asset['browser_download_url']
-                        break
-                
-                # If no platform-specific asset, fall back to the Python package
-                if not self.update_url:
+                # If we have a new version
+                if latest_parts > current_parts:
+                    self.update_available = True
+                    self.latest_version = latest_version
+                    
+                    # Find the right asset for this platform
+                    asset_name = f"QuantumAIAssistant-{self.platform_name}-{self.arch}{self.extension}"
                     for asset in data.get('assets', []):
-                        if asset['name'].endswith('.whl'):
+                        if asset['name'] == asset_name:
                             self.update_url = asset['browser_download_url']
                             break
-                
-                # Get update notes
-                self.update_notes = data.get('body', 'New version available!')
-            else:
+                    
+                    # If no platform-specific asset, fall back to the Python package
+                    if not self.update_url:
+                        for asset in data.get('assets', []):
+                            if asset['name'].endswith('.whl'):
+                                self.update_url = asset['browser_download_url']
+                                break
+                    
+                    # Get update notes
+                    self.update_notes = data.get('body', 'New version available!')
+                else:
+                    self.update_available = False
+            except (ValueError, TypeError):
+                # Handle invalid version format
+                print(f"Invalid version format received: {latest_version}")
                 self.update_available = False
                 
         except Exception as e:
             print(f"Error checking for updates: {e}")
             self.update_available = False
+            # In development or testing environments, don't show error messages to users
+            if "example.com" in UPDATE_CHECK_URL:
+                print("Development mode: Ignoring update check error")
+            else:
+                # In production, log the error properly
+                import traceback
+                traceback.print_exc()
         
         self.check_in_progress = False
         return (self.update_available, self.latest_version, self.update_url, self.update_notes)
@@ -155,6 +176,17 @@ class AutoUpdater:
         if not self.update_available or not self.update_url:
             return False
         
+        # For development mode with example.com URLs
+        if "example.com" in self.update_url:
+            print("Development mode: Simulating update download and install")
+            if callback:
+                callback("Development mode: Simulating update download...")
+                time.sleep(1)  # Simulate a small delay
+                callback("Development mode: Simulating update installation...")
+                time.sleep(1)  # Simulate a small delay
+                callback("Update simulated successfully in development mode!")
+            return True
+            
         try:
             # Progress updates
             if callback:

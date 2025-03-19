@@ -111,7 +111,7 @@ def render_update_ui():
             elif st.session_state.update_installed:
                 st.success("Update installed! Please restart the application.")
             else:
-                if st.button("Install Update", key="install_update_btn"):
+                if st.button("Install Update", key="updates_manager_install_btn"):
                     # Initialize the status message
                     st.session_state.update_status_message = "Preparing to download update..."
                     
@@ -136,7 +136,8 @@ def render_update_ui():
                 )
                 st.write(f"Last checked: {last_check}")
             
-            if st.button("Check for Updates", disabled=check_disabled, key="check_updates_btn"):
+            # Use a more unique key name to avoid conflicts with other components
+            if st.button("Check for Updates", disabled=check_disabled, key="updates_manager_check_btn"):
                 # Start the check in a separate thread
                 threading.Thread(target=check_for_update_worker, daemon=True).start()
                 
