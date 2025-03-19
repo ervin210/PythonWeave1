@@ -12,6 +12,7 @@ import qiskit
 from qiskit import QuantumCircuit
 from qiskit_aer import Aer
 from qiskit.visualization import plot_histogram
+from qiskit.primitives import Sampler
 import matplotlib.pyplot as plt
 from PIL import Image
 
@@ -92,10 +93,12 @@ def post_to_wandb():
                     circuit = create_random_circuit(n_qubits, circuit_depth)
                 
                 # Run the circuit
-                simulator = Aer.get_backend('qasm_simulator')
-                job = qiskit.execute(circuit, simulator, shots=shots)
+                sampler = Sampler()
+                job = sampler.run(circuit, shots=shots)
                 result = job.result()
-                counts = result.get_counts(circuit)
+                counts = result.quasi_dists[0].binary_probabilities(num_bits=n_qubits)
+                # Convert to expected format for visualization
+                counts = {k: int(v * shots) for k, v in counts.items()}
                 
                 # Generate circuit diagram
                 circuit_img = circuit_to_image(circuit)
