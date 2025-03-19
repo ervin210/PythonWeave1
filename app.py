@@ -420,16 +420,122 @@ def render_projects_page():
     """Render the projects page."""
     st.header("Your W&B Projects")
     
-    # Just placeholder for now
-    st.info("Projects would be displayed here.")
+    # Refresh projects button
+    if st.button("Refresh Projects"):
+        with st.spinner("Fetching projects..."):
+            get_projects()
+    
+    # Check if we have any projects
+    if not st.session_state.projects:
+        with st.spinner("Fetching projects..."):
+            projects = get_projects()
+        
+        if not projects:
+            st.warning("No projects found. Create a project in Weights & Biases first.")
+            return
+    
+    # Display projects in a table
+    projects_df = pd.DataFrame(st.session_state.projects)
+    
+    # Convert timestamps to more readable format
+    if 'created_at' in projects_df.columns:
+        projects_df['created_at'] = pd.to_datetime(projects_df['created_at']).dt.strftime('%Y-%m-%d %H:%M:%S')
+    if 'last_updated' in projects_df.columns:
+        projects_df['last_updated'] = pd.to_datetime(projects_df['last_updated']).dt.strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Display table with projects
+    st.dataframe(
+        projects_df[['name', 'entity', 'description', 'created_at', 'last_updated']],
+        use_container_width=True,
+        hide_index=True
+    )
+    
+    # Selection for exploring a project
+    st.subheader("Select a Project to Explore")
+    
+    # Get project names for the selectbox
+    project_options = [f"{p['entity']}/{p['name']}" for p in st.session_state.projects]
+    
+    if project_options:
+        selected_project_id = st.selectbox("Choose a project:", project_options)
+        
+        if st.button("Explore Project"):
+            # Find the selected project in the list
+            for project in st.session_state.projects:
+                if f"{project['entity']}/{project['name']}" == selected_project_id:
+                    st.session_state.selected_project = project
+                    st.session_state.current_page = "runs"
+                    st.rerun()
 
 # Runs page
 def render_runs_page():
     """Render the runs page for a selected project."""
-    st.header("Your Project Runs")
+    if not st.session_state.selected_project:
+        st.warning("No project selected. Please select a project first.")
+        if st.button("Back to Projects"):
+            st.session_state.current_page = "projects"
+            st.rerun()
+        return
     
-    # Just placeholder for now
-    st.info("Runs would be displayed here.")
+    project_id = st.session_state.selected_project["id"]
+    st.header(f"Runs for {project_id}")
+    
+    # Button to refresh runs
+    if st.button("Refresh Runs"):
+        st.session_state.runs = get_runs(project_id)
+    
+    # Get runs for the selected project
+    with st.spinner("Loading runs..."):
+        runs = get_runs(project_id)
+    
+    if not runs:
+        st.warning("No runs found for this project.")
+        return
+    
+    # Prepare data for table display
+    runs_data = []
+    for run in runs:
+        run_data = {
+            "ID": run["id"],
+            "Name": run["name"],
+            "State": run["state"],
+            "Created": pd.to_datetime(run["created_at"]).strftime('%Y-%m-%d %H:%M:%S') if "created_at" in run else "",
+        }
+        
+        # Add some key metrics if available
+        if "summary" in run:
+            for key, value in run["summary"].items():
+                if isinstance(value, (int, float)):
+                    run_data[key] = value
+        
+        runs_data.append(run_data)
+    
+    # Display table with runs
+    runs_df = pd.DataFrame(runs_data)
+    st.dataframe(runs_df, use_container_width=True, hide_index=True)
+    
+    # Select a run for detailed view
+    st.subheader("Select a Run for Detailed Analysis")
+    
+    # Get run names/IDs for the selectbox
+    run_options = [f"{run['name']} ({run['id']})" for run in runs]
+    
+    if run_options:
+        selected_run_option = st.selectbox("Choose a run:", run_options)
+        selected_run_id = selected_run_option.split("(")[-1].split(")")[0]
+        
+        if st.button("View Run Details"):
+            # Find the selected run in the list
+            for run in runs:
+                if run["id"] == selected_run_id:
+                    st.session_state.selected_run = run
+                    st.session_state.current_page = "run_details"
+                    
+                    # Get detailed run data
+                    with st.spinner("Loading run details..."):
+                        st.session_state.run_data = get_run_details(project_id, run["id"])
+                    
+                    st.rerun()
 
 # Run details page
 def render_run_details_page():
