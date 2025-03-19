@@ -1390,7 +1390,7 @@ def main():
             subscription_manager()
         elif st.session_state.current_page == "social_login":
             # Show social login page
-            social_login_page()
+            social_login_page(context="dedicated_page")
         else:
             # Show user login form if user isn't authenticated at any level
             auth_tabs = st.tabs(["Email Login", "Social Login"])
@@ -1399,7 +1399,7 @@ def main():
                 render_user_management()
             
             with auth_tabs[1]:
-                social_login_page()
+                social_login_page(context="tab_view")
     else:
         # User is fully authenticated - show appropriate pages
         if st.session_state.current_page == "user_management":

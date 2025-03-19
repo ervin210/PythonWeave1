@@ -314,8 +314,12 @@ class SocialAuth:
                 self.save_oauth_credentials(selected_provider, credentials)
                 st.success(f"{provider_name} configuration saved!")
     
-    def render_social_login_buttons(self):
-        """Render social login buttons"""
+    def render_social_login_buttons(self, button_prefix=""):
+        """Render social login buttons
+        
+        Args:
+            button_prefix: Optional prefix to make button keys unique across multiple instances
+        """
         st.markdown("### Sign in with:")
         
         # Check which providers are configured
@@ -336,7 +340,8 @@ class SocialAuth:
             col = cols[i % len(cols)]
             
             # Generate a unique button key using our utility function
-            btn_key = generate_button_key(f"social_login_{provider}")
+            # Include the button_prefix to ensure uniqueness
+            btn_key = generate_button_key(f"{button_prefix}_{provider}")
             
             with col:
                 if col.button(
@@ -366,18 +371,26 @@ class SocialAuth:
         # The callback URL is the same as the base URL (we'll handle it in the app)
         return base_url
 
-def social_login_page():
-    """Main function to render the social login page"""
+def social_login_page(context="main"):
+    """Main function to render the social login page
+    
+    Args:
+        context: A string to differentiate between multiple instances of this component
+                on the same page (default: "main")
+    """
     st.header("Sign in with Social Accounts")
     st.markdown("Connect to Quantum AI Assistant using your social accounts.")
     
     auth = SocialAuth()
-    auth.render_social_login_buttons()
+    
+    # Pass the context to ensure unique button keys in different instances
+    btn_prefix = f"{context}_social_login"
+    auth.render_social_login_buttons(btn_prefix)
     
     if st.session_state.get("user_authenticated", False):
         st.success("You're already logged in!")
-        # Use the utility function for unique key generation
-        btn_key = generate_button_key("continue_dashboard")
+        # Use the utility function for unique key generation with context
+        btn_key = generate_button_key(f"{context}_continue_dashboard")
         if st.button("Continue to Dashboard", key=btn_key):
             st.rerun()
 
