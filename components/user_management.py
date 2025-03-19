@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import json
 import hashlib
+import uuid
 from datetime import datetime
 
 # Define the root admin emails (protected from changes)
@@ -139,8 +140,8 @@ def is_root_admin(email):
     """Check if an email is a root admin email"""
     return email in ROOT_ADMIN_EMAILS
 
-def authenticate_user(email, password):
-    """Authenticate a user with email and password"""
+def authenticate_user(email, password, oauth=False):
+    """Authenticate a user with email and password or via OAuth"""
     # Check if the user exists
     if email in st.session_state.user_db:
         user = st.session_state.user_db[email]
@@ -149,8 +150,8 @@ def authenticate_user(email, password):
         if user['status'] != 'active':
             return False, "Account is inactive or suspended"
         
-        # Verify the password
-        if verify_password(user['password'], password):
+        # For OAuth login, skip password verification
+        if oauth or verify_password(user['password'], password):
             # Update last login time
             user['last_login'] = datetime.now().isoformat()
             
@@ -194,11 +195,13 @@ def has_permission(permission):
     
     return False
 
-def create_user(email, name, role, password=None, created_by=None):
+def create_user(email, name, role, password=None, created_by=None, oauth_provider=None):
     """Create a new user"""
-    # Check if the current user has permission to create users
-    if not has_permission('manage_users') and not st.session_state.current_user in ROOT_ADMIN_EMAILS:
-        return False, "You don't have permission to create users"
+    # Skip permission check for OAuth created users
+    if oauth_provider is None:
+        # Check if the current user has permission to create users
+        if not has_permission('manage_users') and not st.session_state.current_user in ROOT_ADMIN_EMAILS:
+            return False, "You don't have permission to create users"
     
     # Check if email already exists
     if email in st.session_state.user_db:
@@ -209,9 +212,10 @@ def create_user(email, name, role, password=None, created_by=None):
         return False, "Invalid role"
     
     # Cannot create root_admin users except by existing root_admin
-    current_user = get_current_user()
-    if role == 'root_admin' and (current_user is None or current_user['role'] != 'root_admin'):
-        return False, "Only root administrators can create other root administrators"
+    if oauth_provider is None:  # Skip this check for OAuth created users
+        current_user = get_current_user()
+        if role == 'root_admin' and (current_user is None or current_user['role'] != 'root_admin'):
+            return False, "Only root administrators can create other root administrators"
     
     # Generate a random password if none provided
     if password is None:
@@ -221,7 +225,7 @@ def create_user(email, name, role, password=None, created_by=None):
     password_data = generate_password_hash(password)
     
     # Create the user
-    st.session_state.user_db[email] = {
+    user_data = {
         'email': email,
         'name': name,
         'role': role,
@@ -233,8 +237,15 @@ def create_user(email, name, role, password=None, created_by=None):
         'created_by': created_by or st.session_state.current_user,
         'last_login': None,
         'status': 'active',
-        'must_change_password': True
+        'must_change_password': not bool(oauth_provider)  # Don't require password change for OAuth users
     }
+    
+    # Add OAuth provider info if available
+    if oauth_provider:
+        user_data['oauth_provider'] = oauth_provider
+    
+    # Save user to database
+    st.session_state.user_db[email] = user_data
     
     # Save changes
     save_user_database()
@@ -320,18 +331,31 @@ def render_login_form():
     """Render the login form"""
     st.subheader("Login")
     
-    with st.form("login_form"):
-        email = st.text_input("Email Address")
-        password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Login")
-        
-        if submitted:
-            success, message = authenticate_user(email, password)
-            if success:
-                st.success(message)
-                st.rerun()
-            else:
-                st.error(message)
+    # Create tabs for password login and social login
+    login_tab, social_tab = st.tabs(["Email & Password", "Social Login"])
+    
+    with login_tab:
+        with st.form("login_form"):
+            email = st.text_input("Email Address")
+            password = st.text_input("Password", type="password")
+            submitted = st.form_submit_button("Login")
+            
+            if submitted:
+                success, message = authenticate_user(email, password)
+                if success:
+                    st.success(message)
+                    st.rerun()
+                else:
+                    st.error(message)
+    
+    with social_tab:
+        # Import the social login component
+        from components.social_auth import social_login_page
+        # Initialize social auth state if needed
+        if "social_auth_state" not in st.session_state:
+            st.session_state.social_auth_state = str(uuid.uuid4())
+        # Show social login buttons
+        social_login_page()
 
 def render_user_management():
     """Render the user management interface"""
