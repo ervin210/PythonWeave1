@@ -522,7 +522,7 @@ def circuit_to_image(circuit):
 def run_quantum_circuit(circuit):
     """Run a quantum circuit simulation"""
     backend = Aer.get_backend('qasm_simulator')
-    job = execute(circuit, backend, shots=1024)
+    job = backend.run(circuit, shots=1024)
     result = job.result()
     counts = result.get_counts(circuit)
     return counts
