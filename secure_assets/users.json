@@ -1,0 +1,28 @@
+{
+  "ervin210@icloud.com": {
+    "email": "ervin210@icloud.com",
+    "name": "Root Administrator",
+    "role": "root_admin",
+    "password": {
+      "hash": "40eac71e463bd91473b9f7318e8b87535cfbf0a48a1150ea7a083034fd73acd553a3f85bf34f2b39c2b7eab34caae35d4f40d81553e0d4bd46906b5ac39580567da47b632815d2e7594b26ba2f0998d7594a91bae4a0c15f69a5ebf585f61678ac18683b2ea2d4d1510210abc4dd4e97863a9206e8b2f1657175970368870be2",
+      "salt": "4cdaf9ab63ef7f6f8620eabed07090598ae49363c6d89f0ed765992a25bca905"
+    },
+    "created_at": "2025-03-19T20:17:58.794859",
+    "last_login": null,
+    "status": "active",
+    "must_change_password": true
+  },
+  "radosavlevici.ervin@gmail.com": {
+    "email": "radosavlevici.ervin@gmail.com",
+    "name": "Root Administrator",
+    "role": "root_admin",
+    "password": {
+      "hash": "5134e08ba7796c19a6060927c030a554f25f62cc5a8c20169f862fc5a6f8a8e25f5d136449d33581ce00a6b4d7be8c3363a5c73b196b9022a42b12a0584d2dd4f86cb80385f6748f939f401ebbd86fe2818afe395f6b5d5421b9f67bf767a0aeb641dcaea8da7bb11ef62e3ebcb35d08a84eef2b9d749ee15ecabe06ed5fb217",
+      "salt": "40adf69953b498ada36fbabeba9cc30b612db12d4a359bc45abadd210bde2883"
+    },
+    "created_at": "2025-03-19T20:17:58.898044",
+    "last_login": null,
+    "status": "active",
+    "must_change_password": true
+  }
+}

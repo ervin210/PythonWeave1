@@ -11,6 +11,9 @@ import time
 # Import logo protection utilities
 from utils.logo_protection import setup_logo_protection, verify_logo_integrity, restore_logo
 
+# Import user management
+from components.user_management import initialize_user_management, render_user_management, has_permission
+
 # Define all utility functions directly in this file for now
 # This avoids circular import issues while we restructure the code
 
@@ -46,6 +49,9 @@ def initialize_session_state():
     
     if "projects" not in st.session_state:
         st.session_state.projects = []
+        
+    # Initialize the user management system
+    initialize_user_management()
     
     # Subscription-related state
     if "subscription_active" not in st.session_state:
@@ -377,6 +383,23 @@ initialize_session_state()
 def render_sidebar():
     """Render the sidebar navigation."""
     st.sidebar.title("Navigation")
+    
+    # Check for user-level authentication (more secure than W&B auth)
+    if st.session_state.get("user_authenticated", False):
+        # Display user info and admin options
+        current_user = st.session_state.get("current_user", None)
+        if current_user:
+            user_data = st.session_state.user_db.get(current_user)
+            if user_data:
+                st.sidebar.success(f"Logged in as: {user_data['name']}")
+                
+                # Enterprise Admin Functions (only for admins)
+                if has_permission('manage_users'):
+                    st.sidebar.divider()
+                    st.sidebar.markdown("### Enterprise Admin")
+                    
+                    if st.sidebar.button("👥 User Management", use_container_width=True):
+                        st.session_state.current_page = "user_management"
     
     if st.session_state.authenticated:
         # Check and display subscription status
