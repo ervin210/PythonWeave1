@@ -108,8 +108,8 @@ def sweep_analyzer():
             return
         
         # Create tabs for different visualizations
-        summary_tab, parallel_tab, table_tab, best_runs_tab = st.tabs([
-            "Summary", "Parallel Coordinates", "All Runs", "Best Runs"
+        summary_tab, parallel_tab, hyperparameter_tab, table_tab, best_runs_tab, quantum_tab = st.tabs([
+            "Summary", "Parallel Coordinates", "Hyperparameter Analysis", "All Runs", "Best Runs", "Quantum Analysis"
         ])
         
         # Summary tab
@@ -246,6 +246,216 @@ def sweep_analyzer():
                         st.warning("Need at least 2 numeric dimensions for parallel coordinates plot")
             else:
                 st.info("No numeric metrics available for visualization")
+
+        # Hyperparameter Analysis tab
+        with hyperparameter_tab:
+            st.subheader("Advanced Hyperparameter Analysis")
+            
+            if len(config_keys) > 0 and len(metric_keys) > 0:
+                # Get optimization metric
+                if metric_name and metric_name in sweep_df.columns:
+                    target_metric = st.selectbox(
+                        "Select target metric for analysis",
+                        options=list(metric_keys),
+                        index=list(metric_keys).index(metric_name) if metric_name in metric_keys else 0
+                    )
+                else:
+                    target_metric = st.selectbox(
+                        "Select target metric for analysis",
+                        options=list(metric_keys)
+                    )
+                
+                # Filter to completed runs only for better analysis
+                completed_df = sweep_df[sweep_df['state'] == 'finished']
+                
+                if completed_df.empty:
+                    st.warning("No completed runs found for hyperparameter analysis")
+                else:
+                    # Determine hyperparameter importance
+                    st.markdown("### Hyperparameter Importance")
+                    
+                    # Select hyperparameters to analyze
+                    hp_params = [p for p in config_keys if p in completed_df.columns]
+                    
+                    # Filter out non-numeric or constant parameters
+                    numeric_params = []
+                    for p in hp_params:
+                        if pd.api.types.is_numeric_dtype(completed_df[p]) and completed_df[p].nunique() > 1:
+                            numeric_params.append(p)
+                    
+                    if not numeric_params:
+                        st.info("No numeric hyperparameters with variation found for importance analysis")
+                    else:
+                        # Basic correlation analysis
+                        st.markdown("#### Correlation Analysis")
+                        corr_data = []
+                        
+                        for param in numeric_params:
+                            # Calculate correlation with target metric
+                            correlation = completed_df[[param, target_metric]].corr().iloc[0, 1]
+                            abs_corr = abs(correlation)
+                            corr_data.append({
+                                "Parameter": param,
+                                "Correlation": correlation,
+                                "Absolute Correlation": abs_corr
+                            })
+                        
+                        # Sort by absolute correlation
+                        corr_df = pd.DataFrame(corr_data).sort_values("Absolute Correlation", ascending=False)
+                        
+                        # Display correlation table
+                        st.dataframe(corr_df, use_container_width=True)
+                        
+                        # Visualize top parameter correlations
+                        top_params = corr_df.head(min(5, len(corr_df)))["Parameter"].tolist()
+                        
+                        if top_params:
+                            st.markdown("#### Top Parameter Effects")
+                            
+                            for param in top_params:
+                                # Create scatter plot with trend line
+                                fig = px.scatter(
+                                    completed_df,
+                                    x=param,
+                                    y=target_metric,
+                                    trendline="ols",
+                                    title=f"Effect of {param} on {target_metric}"
+                                )
+                                st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Hyperparameter interaction analysis
+                    st.markdown("### Parameter Interactions")
+                    
+                    # Select parameters for interaction analysis
+                    interaction_params = st.multiselect(
+                        "Select parameters to analyze interactions",
+                        options=hp_params,
+                        default=hp_params[:min(2, len(hp_params))] if len(hp_params) >= 2 else []
+                    )
+                    
+                    if len(interaction_params) >= 2:
+                        # Pair of parameters to analyze
+                        param1 = interaction_params[0]
+                        param2 = interaction_params[1]
+                        
+                        # Check if both are numeric
+                        if pd.api.types.is_numeric_dtype(completed_df[param1]) and pd.api.types.is_numeric_dtype(completed_df[param2]):
+                            # Create 3D surface plot
+                            fig = go.Figure(data=[go.Scatter3d(
+                                x=completed_df[param1],
+                                y=completed_df[param2],
+                                z=completed_df[target_metric],
+                                mode='markers',
+                                marker=dict(
+                                    size=5,
+                                    color=completed_df[target_metric],
+                                    colorscale='Viridis',
+                                    opacity=0.8,
+                                    colorbar=dict(title=target_metric)
+                                )
+                            )])
+                            
+                            fig.update_layout(
+                                title=f"Interaction between {param1} and {param2} on {target_metric}",
+                                scene=dict(
+                                    xaxis_title=param1,
+                                    yaxis_title=param2,
+                                    zaxis_title=target_metric
+                                ),
+                                height=700
+                            )
+                            
+                            st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            # At least one parameter is categorical
+                            # Create grouped box plot
+                            if not pd.api.types.is_numeric_dtype(completed_df[param1]):
+                                # param1 is categorical, param2 is numeric
+                                fig = px.box(
+                                    completed_df,
+                                    x=param1,
+                                    y=target_metric,
+                                    color=param2 if pd.api.types.is_numeric_dtype(completed_df[param2]) else None,
+                                    title=f"Effect of {param1} and {param2} on {target_metric}"
+                                )
+                            elif not pd.api.types.is_numeric_dtype(completed_df[param2]):
+                                # param2 is categorical, param1 is numeric
+                                fig = px.box(
+                                    completed_df,
+                                    x=param2,
+                                    y=target_metric,
+                                    color=param1,
+                                    title=f"Effect of {param1} and {param2} on {target_metric}"
+                                )
+                            else:
+                                # Both are categorical
+                                # Create grouped bar chart
+                                fig = px.bar(
+                                    completed_df.groupby([param1, param2])[target_metric].mean().reset_index(),
+                                    x=param1,
+                                    y=target_metric,
+                                    color=param2,
+                                    title=f"Effect of {param1} and {param2} on {target_metric}",
+                                    barmode="group"
+                                )
+                            
+                            st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Search space visualization
+                    st.markdown("### Search Space Analysis")
+                    
+                    # Get parameter search ranges
+                    param_ranges = {}
+                    for param in numeric_params:
+                        param_ranges[param] = {
+                            "min": completed_df[param].min(),
+                            "max": completed_df[param].max(),
+                            "unique_values": completed_df[param].nunique()
+                        }
+                    
+                    # Display parameter ranges
+                    ranges_data = []
+                    for param, range_info in param_ranges.items():
+                        ranges_data.append({
+                            "Parameter": param,
+                            "Min": range_info["min"],
+                            "Max": range_info["max"],
+                            "Range": range_info["max"] - range_info["min"],
+                            "Unique Values": range_info["unique_values"]
+                        })
+                    
+                    if ranges_data:
+                        ranges_df = pd.DataFrame(ranges_data)
+                        st.dataframe(ranges_df, use_container_width=True)
+                        
+                        # Visualize parameter exploration
+                        st.markdown("#### Parameter Exploration")
+                        
+                        # Select parameter to visualize
+                        if numeric_params:
+                            vis_param = st.selectbox(
+                                "Select parameter to visualize exploration",
+                                options=numeric_params
+                            )
+                            
+                            # Create scatter plot of parameter vs run index
+                            param_df = completed_df.sort_values("created_at").reset_index(drop=True)
+                            param_df["Run Index"] = param_df.index
+                            
+                            fig = px.scatter(
+                                param_df,
+                                x="Run Index",
+                                y=vis_param,
+                                color=target_metric,
+                                size=abs(param_df[target_metric] - param_df[target_metric].mean()),
+                                title=f"Exploration of {vis_param} Over Sweep"
+                            )
+                            
+                            st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("No numeric parameters found for search space analysis")
+            else:
+                st.info("Insufficient data for hyperparameter analysis")
         
         # Table of all runs
         with table_tab:
