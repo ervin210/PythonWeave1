@@ -1,6 +1,8 @@
 import streamlit as st
 import time
 import threading
+import random
+import string
 from quantum_ai_assistant import __version__
 
 # Try to import the auto-updater (it might not be available in development environments)
@@ -59,6 +61,11 @@ def install_update_worker(callback_key):
     
     return success
 
+def generate_unique_key(prefix):
+    """Generate a unique key with timestamp and random component to avoid duplicates"""
+    random_suffix = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+    return f"{prefix}_{int(time.time())}_{random_suffix}"
+
 def initialize_update_state():
     """Initialize the session state variables for updates"""
     if 'update_check_in_progress' not in st.session_state:
@@ -111,8 +118,8 @@ def render_update_ui():
             elif st.session_state.update_installed:
                 st.success("Update installed! Please restart the application.")
             else:
-                # Use a timestamp-based unique key for the install button as well
-                install_button_key = f"updates_manager_install_btn_{int(time.time())}"
+                # Generate a unique key using our utility function
+                install_button_key = generate_unique_key("updates_manager_install_btn")
                 if st.button("Install Update", key=install_button_key):
                     # Initialize the status message
                     st.session_state.update_status_message = "Preparing to download update..."
@@ -138,8 +145,8 @@ def render_update_ui():
                 )
                 st.write(f"Last checked: {last_check}")
             
-            # Use a timestamp-based unique key to prevent conflicts
-            button_key = f"updates_manager_check_btn_{int(time.time())}"
+            # Generate a unique key using our utility function
+            button_key = generate_unique_key("updates_manager_check_btn")
             if st.button("Check for Updates", disabled=check_disabled, key=button_key):
                 # Start the check in a separate thread
                 threading.Thread(target=check_for_update_worker, daemon=True).start()
