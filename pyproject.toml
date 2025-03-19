@@ -16,4 +16,5 @@ dependencies = [
     "scikit-learn>=1.6.1",
     "matplotlib>=3.10.1",
     "pylatexenc>=2.10",
+    "stripe>=11.6.0",
 ]

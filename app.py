@@ -350,6 +350,12 @@ def render_sidebar():
     st.sidebar.title("Navigation")
     
     if st.session_state.authenticated:
+        # Check and display subscription status
+        from components.subscription_manager import render_subscription_sidebar
+        render_subscription_sidebar()
+        
+        st.sidebar.divider()
+        
         # Quantum AI Assistant button
         if st.sidebar.button("🧠 Quantum AI Assistant", use_container_width=True):
             st.session_state.current_page = "quantum_assistant"
@@ -390,11 +396,29 @@ def render_sidebar():
                 st.session_state.selected_run = None
                 st.session_state.selected_sweep = None
         
+        # Subscription management button
+        if st.sidebar.button("💰 Subscription", use_container_width=True):
+            st.session_state.current_page = "subscription"
+        
         st.sidebar.divider()
         
         if st.sidebar.button("🚪 Logout", use_container_width=True):
             logout_wandb()
             st.rerun()
+    else:
+        # Show subscription options for non-authenticated users
+        st.sidebar.markdown("### Premium Plans Available")
+        st.sidebar.info(
+            """
+            🔍 Try our premium plans:
+            ✓ Advanced quantum analysis
+            ✓ Cross-platform connectivity
+            ✓ Priority support
+            """
+        )
+        
+        if st.sidebar.button("View Subscription Plans", use_container_width=True):
+            st.session_state.show_subscription_preview = True
     
     st.sidebar.divider()
     st.sidebar.markdown("### About")
@@ -1253,7 +1277,12 @@ def main():
     
     # Display the appropriate page based on navigation state
     if not st.session_state.authenticated:
-        render_auth_page()
+        if st.session_state.get("show_subscription_preview", False):
+            # Show subscription preview for non-authenticated users
+            from components.subscription_manager import subscription_manager
+            subscription_manager()
+        else:
+            render_auth_page()
     else:
         if st.session_state.current_page == "quantum_assistant":
             quantum_assistant()
@@ -1269,6 +1298,9 @@ def main():
         elif st.session_state.current_page == "batch_operations":
             from components.batch_operations import batch_operations
             batch_operations()
+        elif st.session_state.current_page == "subscription":
+            from components.subscription_manager import subscription_manager
+            subscription_manager()
         elif st.session_state.current_page == "projects":
             render_projects_page()
         elif st.session_state.current_page == "runs":
