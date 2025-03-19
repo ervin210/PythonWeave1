@@ -26,6 +26,11 @@ def render_sidebar():
     st.sidebar.title("Navigation")
     
     if st.session_state.authenticated:
+        # Quantum AI Assistant button
+        if st.sidebar.button("🧠 Quantum AI Assistant", use_container_width=True):
+            st.session_state.current_page = "quantum_assistant"
+            
+        # Project management buttons
         if st.sidebar.button("📋 Projects", use_container_width=True):
             st.session_state.current_page = "projects"
             st.session_state.selected_project = None
