@@ -2,15 +2,24 @@ import streamlit as st
 import wandb
 import os
 import sys
-# Import components functions
-from components import render_sidebar, render_auth_page, render_projects_page
-from components import render_runs_page, render_run_details_page
-from components import render_sweeps_page, render_sweep_details_page
+
+# Import utility functions directly 
 from utils import initialize_session_state
 
-# Import quantum assistant functionality
+# Import components directly
+from components import (
+    quantum_assistant,
+    artifact_manager,
+    authenticate_wandb, 
+    data_export,
+    project_explorer,
+    run_details,
+    sweep_analyzer
+)
+
+# Import components functions directly from components.py
 sys.path.append(".")
-from quantum_assistant import quantum_assistant
+import components as comp
 
 # Page title and configuration
 st.set_page_config(
@@ -29,24 +38,24 @@ def main():
     st.title("Quantum AI Experiment Dashboard")
     
     # Render sidebar for navigation
-    render_sidebar()
+    comp.render_sidebar()
     
     # Display the appropriate page based on navigation state
     if not st.session_state.authenticated:
-        render_auth_page()
+        comp.render_auth_page()
     else:
         if st.session_state.current_page == "quantum_assistant":
             quantum_assistant()
         elif st.session_state.current_page == "projects":
-            render_projects_page()
+            comp.render_projects_page()
         elif st.session_state.current_page == "runs":
-            render_runs_page()
+            comp.render_runs_page()
         elif st.session_state.current_page == "run_details":
-            render_run_details_page()
+            comp.render_run_details_page()
         elif st.session_state.current_page == "sweeps":
-            render_sweeps_page()
+            comp.render_sweeps_page()
         elif st.session_state.current_page == "sweep_details":
-            render_sweep_details_page()
+            comp.render_sweep_details_page()
 
 if __name__ == "__main__":
     main()
