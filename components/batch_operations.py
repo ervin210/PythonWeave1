@@ -927,7 +927,7 @@ def batch_operations():
             
             # Batch Tagging Tab
             with batch_tagging_tab:
-                st.markdown("### Add or Remove Tags")
+                st.markdown("### Tag Management System")
                 
                 # Display current tags for selected runs
                 all_tags = set()
@@ -938,32 +938,104 @@ def batch_operations():
                     run_tags[run["id"]] = tags
                     all_tags.update(tags)
                 
-                # Show current tags table
-                if all_tags:
-                    st.markdown("#### Current Tags")
-                    
-                    # Create a dataframe to show which runs have which tags
-                    tag_data = []
-                    for run in selected_runs:
-                        run_data = {"Run": run["name"], "ID": run["id"]}
-                        
-                        for tag in sorted(all_tags):
-                            run_data[tag] = "✓" if tag in run_tags.get(run["id"], []) else ""
-                        
-                        tag_data.append(run_data)
-                    
-                    tag_df = pd.DataFrame(tag_data)
-                    st.dataframe(tag_df, use_container_width=True)
-                else:
-                    st.info("No tags found on the selected runs.")
+                # Create tabs for different tag operations
+                tag_overview_tab, add_tags_tab, remove_tags_tab, tag_templates_tab = st.tabs([
+                    "Tag Overview", "Add Tags", "Remove Tags", "Tag Templates"
+                ])
                 
-                # Add new tags
-                st.markdown("#### Add New Tags")
-                new_tags = st.text_input("Enter new tags (comma-separated):")
+                with tag_overview_tab:
+                    st.markdown("#### Current Tag Distribution")
                 
-                if st.button("Add Tags to Selected Runs"):
-                    if new_tags:
+                    # Show current tags table
+                    if all_tags:
+                        # Create a dataframe to show which runs have which tags
+                        tag_data = []
+                        for run in selected_runs:
+                            run_data = {"Run": run["name"], "ID": run["id"]}
+                            
+                            for tag in sorted(all_tags):
+                                run_data[tag] = "✓" if tag in run_tags.get(run["id"], []) else ""
+                            
+                            tag_data.append(run_data)
+                        
+                        tag_df = pd.DataFrame(tag_data)
+                        st.dataframe(tag_df, use_container_width=True)
+                        
+                        # Visualize tag distribution
+                        st.markdown("#### Tag Distribution Analysis")
+                        
+                        # Count tags across runs
+                        tag_counts = {tag: sum(1 for run_id in run_tags if tag in run_tags[run_id]) for tag in all_tags}
+                        
+                        # Create bar chart for tag distribution
+                        fig = px.bar(
+                            x=list(tag_counts.keys()), 
+                            y=list(tag_counts.values()),
+                            labels={"x": "Tag", "y": "Count"},
+                            title="Tag Distribution Across Selected Runs",
+                            color=list(tag_counts.keys())
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                    else:
+                        st.info("No tags found on the selected runs.")
+                
+                # Add new tags tab
+                with add_tags_tab:
+                    st.markdown("#### Add New Tags to Selected Runs")
+                    
+                    # Standard tag entry
+                    new_tags = st.text_input("Enter new tags (comma-separated):")
+                    
+                    # Suggested category tags as checkboxes
+                    st.markdown("#### Suggested Category Tags")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        add_status_tag = st.checkbox("📊 Status", key="status_tag")
+                        add_verified_tag = st.checkbox("✅ Verified", key="verified_tag")
+                        add_production_tag = st.checkbox("🏭 Production", key="production_tag")
+                    
+                    with col2:
+                        add_experiment_tag = st.checkbox("🧪 Experiment", key="experiment_tag")
+                        add_baseline_tag = st.checkbox("📏 Baseline", key="baseline_tag")
+                        add_debug_tag = st.checkbox("🐞 Debug", key="debug_tag")
+                    
+                    with col3:
+                        add_review_tag = st.checkbox("👁️ Review", key="review_tag")
+                        add_quantum_tag = st.checkbox("⚛️ Quantum", key="quantum_tag")
+                        add_ml_tag = st.checkbox("🧠 Machine Learning", key="ml_tag")
+                    
+                    # Custom tag templates
+                    st.markdown("#### Custom Tag Prefix")
+                    tag_prefix = st.text_input("Enter a prefix for all tags (optional):")
+                    
+                    if st.button("Add Tags to Selected Runs"):
+                        # Collect all selected tags
                         tag_list = [tag.strip() for tag in new_tags.split(",") if tag.strip()]
+                        
+                        # Add suggested tags if selected
+                        if add_status_tag:
+                            tag_list.append("status")
+                        if add_verified_tag:
+                            tag_list.append("verified")
+                        if add_production_tag:
+                            tag_list.append("production")
+                        if add_experiment_tag:
+                            tag_list.append("experiment")
+                        if add_baseline_tag:
+                            tag_list.append("baseline")
+                        if add_debug_tag:
+                            tag_list.append("debug")
+                        if add_review_tag:
+                            tag_list.append("review")
+                        if add_quantum_tag:
+                            tag_list.append("quantum")
+                        if add_ml_tag:
+                            tag_list.append("ml")
+                        
+                        # Apply prefix if provided
+                        if tag_prefix:
+                            tag_list = [f"{tag_prefix}_{tag}" if not tag.startswith(tag_prefix) else tag for tag in tag_list]
                         
                         if tag_list:
                             try:
@@ -987,41 +1059,161 @@ def batch_operations():
                             except Exception as e:
                                 st.error(f"Error accessing W&B API: {str(e)}")
                         else:
-                            st.warning("No valid tags provided.")
+                            st.warning("No valid tags provided. Please enter tags or select suggested categories.")
                     else:
-                        st.warning("Please enter at least one tag.")
+                        pass  # Don't show any warning until the button is clicked
                 
-                # Remove tags
-                st.markdown("#### Remove Tags")
-                if all_tags:
-                    tags_to_remove = st.multiselect("Select tags to remove:", sorted(all_tags))
+                # Remove tags tab
+                with remove_tags_tab:
+                    st.markdown("#### Remove Tags from Selected Runs")
                     
-                    if st.button("Remove Selected Tags"):
-                        if tags_to_remove:
+                    if all_tags:
+                        st.markdown("Select tags to remove from the runs:")
+                        
+                        # Create a multi-column layout for tag checkboxes
+                        num_cols = 3
+                        cols = st.columns(num_cols)
+                        
+                        # Organize tags into columns
+                        sorted_tags = sorted(list(all_tags))
+                        tags_per_col = (len(sorted_tags) + num_cols - 1) // num_cols
+                        
+                        # Dictionary to store checkbox states
+                        tags_to_remove = []
+                        
+                        # Distribute tags across columns
+                        for i, tag in enumerate(sorted_tags):
+                            col_idx = i // tags_per_col
+                            with cols[min(col_idx, num_cols-1)]:
+                                if st.checkbox(tag, key=f"tag_{tag}_remove"):
+                                    tags_to_remove.append(tag)
+                        
+                        # Add a "Select All" and "Deselect All" option
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("Select All Tags"):
+                                # We can't directly modify checkbox states, but this informs the user
+                                st.info("Please manually check all boxes, or use 'Remove All Tags' button below.")
+                        
+                        with col2:
+                            remove_all_tags = st.button("Remove ALL Tags")
+                        
+                        # Button to remove selected tags
+                        if st.button("Remove Selected Tags"):
+                            if tags_to_remove:
+                                try:
+                                    # Use the W&B API to remove tags from each run
+                                    api = wandb.Api()
+                                    
+                                    success_count = 0
+                                    for run_id in selected_run_ids:
+                                        try:
+                                            run = api.run(f"{st.session_state.wandb_entity}/{st.session_state.selected_project}/{run_id}")
+                                            run.tags = [tag for tag in run.tags if tag not in tags_to_remove]
+                                            run.update()
+                                            success_count += 1
+                                        except Exception as e:
+                                            st.error(f"Error removing tags from run {run_id}: {str(e)}")
+                                    
+                                    if success_count > 0:
+                                        st.success(f"Removed tags from {success_count} runs. Refresh the page to see updates.")
+                                        # Update session state runs data
+                                        st.session_state.refresh_required = True
+                                except Exception as e:
+                                    st.error(f"Error accessing W&B API: {str(e)}")
+                            else:
+                                st.warning("Please select at least one tag to remove.")
+                        
+                        # Handle the "Remove All Tags" action
+                        if remove_all_tags:
                             try:
-                                # Use the W&B API to remove tags from each run
+                                # Use the W&B API to remove all tags from each run
                                 api = wandb.Api()
                                 
                                 success_count = 0
                                 for run_id in selected_run_ids:
                                     try:
                                         run = api.run(f"{st.session_state.wandb_entity}/{st.session_state.selected_project}/{run_id}")
-                                        run.tags = [tag for tag in run.tags if tag not in tags_to_remove]
+                                        run.tags = []
                                         run.update()
                                         success_count += 1
                                     except Exception as e:
-                                        st.error(f"Error removing tags from run {run_id}: {str(e)}")
+                                        st.error(f"Error removing all tags from run {run_id}: {str(e)}")
                                 
                                 if success_count > 0:
-                                    st.success(f"Removed tags from {success_count} runs. Refresh the page to see updates.")
+                                    st.success(f"Removed all tags from {success_count} runs. Refresh the page to see updates.")
                                     # Update session state runs data
                                     st.session_state.refresh_required = True
                             except Exception as e:
                                 st.error(f"Error accessing W&B API: {str(e)}")
-                        else:
-                            st.warning("Please select at least one tag to remove.")
-                else:
-                    st.info("No tags available to remove.")
+                    else:
+                        st.info("No tags available to remove.")
+                
+                # Tag templates tab
+                with tag_templates_tab:
+                    st.markdown("#### Tag Templates & Bulk Operations")
+                    
+                    st.markdown("""
+                    Apply predefined tag sets to selected runs. These templates help maintain
+                    consistent tagging across your experiments.
+                    """)
+                    
+                    # Define some common tag templates
+                    tag_templates = {
+                        "Production Ready": ["production", "verified", "stable"],
+                        "Development": ["dev", "experimental", "in-progress"],
+                        "Quantum ML": ["quantum", "ml", "hybrid"],
+                        "Review Required": ["review", "pending", "needs-attention"],
+                        "Baseline Model": ["baseline", "reference", "standard"],
+                        "Deprecated": ["deprecated", "archived", "obsolete"]
+                    }
+                    
+                    # Let user select a template
+                    selected_template = st.selectbox(
+                        "Select a tag template:",
+                        options=list(tag_templates.keys())
+                    )
+                    
+                    # Display tags in the selected template
+                    st.markdown(f"**Tags in template:** {', '.join(tag_templates[selected_template])}")
+                    
+                    # Apply template button
+                    if st.button(f"Apply '{selected_template}' Template"):
+                        try:
+                            # Use the W&B API to add template tags to each run
+                            api = wandb.Api()
+                            
+                            success_count = 0
+                            for run_id in selected_run_ids:
+                                try:
+                                    run = api.run(f"{st.session_state.wandb_entity}/{st.session_state.selected_project}/{run_id}")
+                                    run.tags = list(set(run.tags + tag_templates[selected_template]))
+                                    run.update()
+                                    success_count += 1
+                                except Exception as e:
+                                    st.error(f"Error applying tag template to run {run_id}: {str(e)}")
+                            
+                            if success_count > 0:
+                                st.success(f"Applied template to {success_count} runs. Refresh the page to see updates.")
+                                # Update session state runs data
+                                st.session_state.refresh_required = True
+                        except Exception as e:
+                            st.error(f"Error accessing W&B API: {str(e)}")
+                    
+                    # Create custom template section
+                    st.markdown("#### Create Custom Template")
+                    custom_template_name = st.text_input("Template Name:")
+                    custom_template_tags = st.text_input("Template Tags (comma-separated):")
+                    
+                    if st.button("Save Custom Template"):
+                        if custom_template_name and custom_template_tags:
+                            tag_list = [tag.strip() for tag in custom_template_tags.split(",") if tag.strip()]
+                            if tag_list:
+                                # This is a UI demo - in a real app, you'd persist templates to a database
+                                st.success(f"Template '{custom_template_name}' created with tags: {', '.join(tag_list)}")
+                                st.info("Note: Custom templates are not permanently saved in this demo version.")
+                            else:
+                                st.warning("Please enter valid tags for your template.")
             
             # Status Management Tab
             with status_management_tab:
