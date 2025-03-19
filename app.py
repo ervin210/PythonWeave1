@@ -3,18 +3,21 @@ import wandb
 import os
 import sys
 
-# Import all utility functions directly from the utils.py file
-from utils import *
-
-# For clarity's sake, let's also list the main functions we're using:
-# - initialize_session_state
-# - authenticate_wandb
-# - logout_wandb
-# - get_projects
-# - get_runs
-# - get_run_details 
-# - get_sweeps
-# - get_sweep_details
+# Make direct imports from the utils.py file (not the package)
+sys.path.append(".")
+from utils import (
+    initialize_session_state,
+    authenticate_wandb,
+    logout_wandb,
+    get_projects,
+    get_runs,
+    get_run_details,
+    download_run_artifact,
+    get_sweeps,
+    get_sweep_details,
+    find_best_run,
+    export_to_csv
+)
 
 # Import the quantum_assistant function
 from components.quantum_assistant import quantum_assistant
