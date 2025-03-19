@@ -4,7 +4,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import qiskit
-from qiskit import QuantumCircuit, execute
+from qiskit import QuantumCircuit
 from qiskit_aer import Aer
 from qiskit.visualization import plot_histogram
 import pennylane as qml
@@ -394,7 +394,8 @@ def circuit_to_image(circuit):
 def run_quantum_circuit(circuit):
     """Run a quantum circuit simulation"""
     simulator = Aer.get_backend('qasm_simulator')
-    result = execute(circuit, simulator, shots=1024).result()
+    job = simulator.run(circuit, shots=1024)
+    result = job.result()
     return result
 
 def plot_quantum_results(counts):
