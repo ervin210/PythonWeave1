@@ -4,7 +4,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
-from utils.visualization import create_parallel_coordinates_plot
+from utils import create_parallel_coordinates_plot
 
 def sweep_analyzer():
     """
