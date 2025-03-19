@@ -4,6 +4,7 @@ import json
 import os
 import uuid
 import time
+import random
 from authlib.integrations.requests_client import OAuth2Session
 import hashlib
 import base64
@@ -339,9 +340,11 @@ class SocialAuth:
             config = self.providers[provider]
             col = cols[i % len(cols)]
             
-            # Generate a unique button key using our utility function
-            # Include the button_prefix to ensure uniqueness
-            btn_key = generate_button_key(f"{button_prefix}_{provider}")
+            # Generate a completely unique button key using current timestamp + random value
+            # This ensures uniqueness even if the same component is rendered multiple times
+            timestamp = int(time.time() * 1000)  # Millisecond precision
+            random_val = random.randint(10000, 99999)
+            btn_key = f"social_login_{button_prefix}_{provider}_{timestamp}_{random_val}"
             
             with col:
                 if col.button(
@@ -389,8 +392,10 @@ def social_login_page(context="main"):
     
     if st.session_state.get("user_authenticated", False):
         st.success("You're already logged in!")
-        # Use the utility function for unique key generation with context
-        btn_key = generate_button_key(f"{context}_continue_dashboard")
+        # Generate a completely unique key for this button too
+        timestamp = int(time.time() * 1000)  # Millisecond precision
+        random_val = random.randint(10000, 99999)
+        btn_key = f"continue_dashboard_{context}_{timestamp}_{random_val}"
         if st.button("Continue to Dashboard", key=btn_key):
             st.rerun()
 
