@@ -928,8 +928,8 @@ def batch_operations():
             """)
             
             # Create sub-tabs for different bulk operations
-            batch_tagging_tab, status_management_tab, metadata_tab = st.tabs([
-                "Batch Tagging", "Status Management", "Metadata Operations"
+            batch_tagging_tab, status_management_tab, metadata_tab, artifact_tab, deletion_tab = st.tabs([
+                "Batch Tagging", "Status Management", "Metadata Operations", "Artifact Management", "Deletion & Archiving"
             ])
             
             # Batch Tagging Tab
