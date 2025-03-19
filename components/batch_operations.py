@@ -1289,6 +1289,39 @@ def batch_operations():
                 st.markdown("#### Run Notes")
                 batch_notes = st.text_area("Enter notes to add to all selected runs:", height=100)
                 
+                # Add a button to apply notes
+                if st.button("Apply Notes to Selected Runs"):
+                    if batch_notes:
+                        try:
+                            api = wandb.Api()
+                            success_count = 0
+                            
+                            for run_id in selected_run_ids:
+                                try:
+                                    run = api.run(f"{project_id}/{run_id}")
+                                    
+                                    # Get existing notes or initialize empty string
+                                    existing_notes = run.notes if hasattr(run, "notes") else ""
+                                    
+                                    # Append or set new notes
+                                    if existing_notes:
+                                        # Add a divider if there are existing notes
+                                        run.notes = f"{existing_notes}\n\n---\n{batch_notes}"
+                                    else:
+                                        run.notes = batch_notes
+                                    
+                                    run.update()
+                                    success_count += 1
+                                except Exception as e:
+                                    st.error(f"Error updating notes for run {run_id}: {str(e)}")
+                            
+                            if success_count > 0:
+                                st.success(f"Updated notes for {success_count} runs. Refresh to see changes.")
+                        except Exception as e:
+                            st.error(f"Error accessing W&B API: {str(e)}")
+                    else:
+                        st.warning("Please enter notes to add.")
+                
                 # Custom metadata fields
                 st.markdown("#### Custom Metadata Fields")
                 st.markdown("Add or update custom metadata fields across all selected runs.")
@@ -1527,6 +1560,56 @@ def batch_operations():
                                                 
                                                 file_path = os.path.join(tmp_dir, f"{run_name}_{file_name}")
                                                 run.file(file_name).download(root=tmp_dir, replace=True)
+                                                actual_path = os.path.join(tmp_dir, file_name)
+                                                
+                                                # Create a more descriptive filename that includes the run name
+                                                renamed_path = os.path.join(tmp_dir, f"{run_name}_{file_name}")
+                                                if os.path.exists(actual_path):
+                                                    # Rename the file to include the run name for clarity
+                                                    os.rename(actual_path, renamed_path)
+                                                    downloaded_files.append(renamed_path)
+                                            except Exception as e:
+                                                st.error(f"Error downloading {file_name} from run {run_name}: {str(e)}")
+                                        
+                                        if downloaded_files:
+                                            # Create ZIP file of all downloaded files
+                                            zip_path = os.path.join(tmp_dir, "wandb_artifacts.zip")
+                                            self.create_zip_file(downloaded_files, zip_path)
+                                            
+                                            # Provide download link for the ZIP file
+                                            with open(zip_path, "rb") as f:
+                                                bytes_data = f.read()
+                                                st.download_button(
+                                                    label="Download ZIP File",
+                                                    data=bytes_data,
+                                                    file_name="wandb_artifacts.zip",
+                                                    mime="application/zip"
+                                                )
+                                    
+                                except Exception as e:
+                                    st.error(f"Error processing files: {str(e)}")
+                            
+                            # Option to download files individually
+                            st.markdown("#### Individual File Downloads")
+                            for file_option in selected_files:
+                                file_name = file_option.split(" (")[0]
+                                run_name = file_option.split("(")[1].split(")")[0]
+                                
+                                # Find run_id for this file
+                                file_info = filtered_df[(filtered_df['name'] == file_name) & 
+                                                       (filtered_df['run_name'] == run_name)].iloc[0]
+                                run_id = file_info['run_id']
+                                
+                                col1, col2 = st.columns([3, 1])
+                                with col1:
+                                    st.write(f"**{file_name}** from run *{run_name}*")
+                                with col2:
+                                    if st.button(f"Download", key=f"dl_{file_name}_{run_id}"):
+                                        try:
+                                            api = wandb.Api()
+                                            run = api.run(f"{project_id}/{run_id}")
+                                            
+                                            with tempfile.TemporaryDirectory() as tmp_dir:
                                                 actual_path = os.path.join(tmp_dir, file_name)
                                                 
                                                 if os.path.exists(actual_path):
