@@ -111,7 +111,9 @@ def render_update_ui():
             elif st.session_state.update_installed:
                 st.success("Update installed! Please restart the application.")
             else:
-                if st.button("Install Update", key="updates_manager_install_btn"):
+                # Use a timestamp-based unique key for the install button as well
+                install_button_key = f"updates_manager_install_btn_{int(time.time())}"
+                if st.button("Install Update", key=install_button_key):
                     # Initialize the status message
                     st.session_state.update_status_message = "Preparing to download update..."
                     
@@ -136,8 +138,9 @@ def render_update_ui():
                 )
                 st.write(f"Last checked: {last_check}")
             
-            # Use a more unique key name to avoid conflicts with other components
-            if st.button("Check for Updates", disabled=check_disabled, key="updates_manager_check_btn"):
+            # Use a timestamp-based unique key to prevent conflicts
+            button_key = f"updates_manager_check_btn_{int(time.time())}"
+            if st.button("Check for Updates", disabled=check_disabled, key=button_key):
                 # Start the check in a separate thread
                 threading.Thread(target=check_for_update_worker, daemon=True).start()
                 
