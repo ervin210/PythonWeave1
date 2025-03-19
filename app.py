@@ -498,6 +498,7 @@ def render_projects_page():
             for project in st.session_state.projects:
                 if f"{project['entity']}/{project['name']}" == selected_project_id:
                     st.session_state.selected_project = project
+                    st.session_state.wandb_entity = project['entity']
                     st.session_state.current_page = "runs"
                     st.rerun()
 
@@ -513,6 +514,12 @@ def render_runs_page():
     
     project_id = st.session_state.selected_project["id"]
     st.header(f"Runs for {project_id}")
+    
+    # Check if refresh is required (for batch operations)
+    if "refresh_required" in st.session_state and st.session_state.refresh_required:
+        st.session_state.runs = get_runs(project_id)
+        st.session_state.refresh_required = False
+        st.success("Data refreshed successfully!")
     
     # Button to refresh runs
     if st.button("Refresh Runs"):
