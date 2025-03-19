@@ -362,6 +362,10 @@ def render_sidebar():
         if st.sidebar.button("🔌 Integration Hub", use_container_width=True):
             st.session_state.current_page = "integration_hub"
             
+        # Cross-Platform Connector button
+        if st.sidebar.button("🌐 Cross-Platform Connector", use_container_width=True):
+            st.session_state.current_page = "cross_platform_connector"
+            
         # Project management buttons
         if st.sidebar.button("📋 Projects", use_container_width=True):
             st.session_state.current_page = "projects"
@@ -1252,6 +1256,9 @@ def main():
         elif st.session_state.current_page == "integration_hub":
             from components.integration_hub import integration_hub
             integration_hub()
+        elif st.session_state.current_page == "cross_platform_connector":
+            from components.cross_platform_connector import cross_platform_connector
+            cross_platform_connector()
         elif st.session_state.current_page == "batch_operations":
             from components.batch_operations import batch_operations
             batch_operations()
