@@ -325,8 +325,11 @@ class SocialAuth:
             config = self.providers[provider]
             col = cols[i % len(cols)]
             
-            # Unique key for each button
-            btn_key = f"social_login_{provider}"
+            # Generate unique key with a timestamp and random component
+            import random
+            import time
+            unique_id = f"{int(time.time())}{random.randint(1000, 9999)}"
+            btn_key = f"social_login_{provider}_{unique_id}"
             
             with col:
                 if col.button(
@@ -366,7 +369,11 @@ def social_login_page():
     
     if st.session_state.get("user_authenticated", False):
         st.success("You're already logged in!")
-        if st.button("Continue to Dashboard"):
+        # Use unique key for this button too
+        import random
+        import time
+        unique_id = f"{int(time.time())}{random.randint(1000, 9999)}"
+        if st.button("Continue to Dashboard", key=f"continue_dashboard_{unique_id}"):
             st.rerun()
 
 def social_auth_callback_handler():
