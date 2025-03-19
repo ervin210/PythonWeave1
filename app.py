@@ -412,6 +412,9 @@ def render_sidebar():
                     
                     if st.sidebar.button("👥 User Management", use_container_width=True):
                         st.session_state.current_page = "user_management"
+                        
+                    if st.sidebar.button("🔑 OAuth Config", use_container_width=True):
+                        st.session_state.current_page = "oauth_config"
                     
                     if st.sidebar.button("🔒 Quantum Security", use_container_width=True):
                         st.session_state.current_page = "quantum_security"
@@ -1384,6 +1387,16 @@ def main():
         if st.session_state.current_page == "user_management":
             # This is accessible only for admin users
             render_user_management()
+        elif st.session_state.current_page == "oauth_config":
+            # This is accessible only for admin users
+            if has_permission("admin"):
+                st.header("OAuth Provider Configuration")
+                st.markdown("Configure social login providers for your users.")
+                from components.social_auth import SocialAuth
+                auth = SocialAuth()
+                auth.render_oauth_config()
+            else:
+                st.error("You do not have permission to access this page.")
         elif st.session_state.current_page == "quantum_security":
             # Enterprise-level quantum security features
             from components.quantum_security import quantum_security

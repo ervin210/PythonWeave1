@@ -73,6 +73,14 @@ class SocialAuth:
                         "client_id": os.environ[client_id_env],
                         "client_secret": os.environ[client_secret_env]
                     }
+                    
+        # Add demo credentials for testing if no providers are configured
+        if not st.session_state.oauth_credentials and not os.path.exists(".oauth_configured"):
+            # Add a demo Google configuration (these are placeholder values)
+            st.session_state.oauth_credentials["google"] = {
+                "client_id": "demo-client-id",
+                "client_secret": "demo-client-secret"
+            }
         
     def save_oauth_credentials(self, provider, credentials):
         """Save OAuth credentials for a provider"""
