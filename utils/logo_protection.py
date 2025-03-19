@@ -15,6 +15,7 @@ import threading
 import logging
 import base64
 import datetime
+import json
 from PIL import Image
 from io import BytesIO
 
@@ -109,31 +110,268 @@ def restore_logo():
     return False
 
 def setup_logo_protection():
-    """Set up logo protection by creating a secure copy and storing its hash"""
-    # Ensure secure assets directory exists
-    os.makedirs(os.path.dirname(SECURE_LOGO_PATH), exist_ok=True)
+    """Set up comprehensive logo protection by creating secure copies and storing metadata"""
+    logger.info("Setting up logo protection system")
     
-    # If the logo exists in assets but not in secure_assets, copy it
-    if os.path.exists(LOGO_PATH) and not os.path.exists(SECURE_LOGO_PATH):
-        shutil.copy2(LOGO_PATH, SECURE_LOGO_PATH)
+    try:
+        # Ensure secure assets directory exists
+        os.makedirs(os.path.dirname(SECURE_LOGO_PATH), exist_ok=True)
+        os.makedirs(os.path.dirname(LOGO_PATH), exist_ok=True)
+        
+        # If attached_assets/blob.jpg exists, use it to initialize the logo system
+        if os.path.exists("attached_assets/blob.jpg") and not os.path.exists(SECURE_LOGO_PATH):
+            logger.info("Using attached blob as initial logo")
+            shutil.copy2("attached_assets/blob.jpg", SECURE_LOGO_PATH)
+            if not os.path.exists(LOGO_PATH):
+                shutil.copy2("attached_assets/blob.jpg", LOGO_PATH)
+        
+        # If the logo exists in assets but not in secure_assets, copy it
+        elif os.path.exists(LOGO_PATH) and not os.path.exists(SECURE_LOGO_PATH):
+            logger.info("Copying existing logo to secure location")
+            shutil.copy2(LOGO_PATH, SECURE_LOGO_PATH)
+        
+        # If logo exists in secure_assets but not in assets, restore it
+        elif os.path.exists(SECURE_LOGO_PATH) and not os.path.exists(LOGO_PATH):
+            logger.info("Restoring logo from secure location")
+            restore_logo()
+            
+        # Create backup copy
+        if os.path.exists(SECURE_LOGO_PATH) and not os.path.exists(BACKUP_LOGO_PATH):
+            logger.info("Creating logo backup")
+            create_logo_backup()
+        
+        # Create base64 encoded backup
+        if os.path.exists(SECURE_LOGO_PATH) and not os.path.exists(ENCODED_LOGO_PATH):
+            logger.info("Creating base64 encoded backup")
+            encode_logo_to_base64()
+        
+        # Store logo metadata
+        if os.path.exists(SECURE_LOGO_PATH) and not os.path.exists(LOGO_METADATA_FILE):
+            logger.info("Storing logo metadata")
+            store_logo_metadata()
+        
+        # Store the hash of the original logo
+        logger.info("Storing logo hash")
+        store_original_hash()
+        
+        # Verify initial integrity
+        logger.info("Verifying initial logo integrity")
+        integrity_status = verify_logo_integrity()
+        if not integrity_status:
+            logger.warning("Initial integrity check failed, restoring logo")
+            multi_level_restore()
+        
+        # Start the integrity check thread
+        logger.info("Starting continuous integrity monitoring")
+        start_integrity_check()
+        
+        logger.info("Logo protection system fully initialized")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error setting up logo protection: {str(e)}")
+        return False
+
+def encode_logo_to_base64():
+    """Encode the logo as base64 for an additional backup layer"""
+    if not os.path.exists(SECURE_LOGO_PATH):
+        logger.error("Cannot encode logo: Secure logo file not found")
+        return False
     
-    # If logo exists in secure_assets but not in assets, restore it
-    elif os.path.exists(SECURE_LOGO_PATH) and not os.path.exists(LOGO_PATH):
-        restore_logo()
+    try:
+        with open(SECURE_LOGO_PATH, "rb") as img_file:
+            encoded_data = base64.b64encode(img_file.read()).decode('utf-8')
+        
+        os.makedirs(os.path.dirname(ENCODED_LOGO_PATH), exist_ok=True)
+        with open(ENCODED_LOGO_PATH, "w") as f:
+            f.write(encoded_data)
+        
+        # Set read-only permissions
+        os.chmod(ENCODED_LOGO_PATH, 0o444)
+        logger.info("Logo encoded to base64 and stored")
+        return True
+    except Exception as e:
+        logger.error(f"Error encoding logo to base64: {str(e)}")
+        return False
+
+def decode_and_restore_logo():
+    """Restore the logo from the base64 encoded backup"""
+    if not os.path.exists(ENCODED_LOGO_PATH):
+        logger.error("Cannot decode logo: Encoded backup not found")
+        return False
     
-    # Store the hash of the original logo
-    store_original_hash()
+    try:
+        with open(ENCODED_LOGO_PATH, "r") as f:
+            encoded_data = f.read()
+        
+        # Decode the base64 data
+        decoded_data = base64.b64decode(encoded_data)
+        
+        # Verify it's a valid image
+        try:
+            Image.open(BytesIO(decoded_data))
+        except:
+            logger.error("Encoded backup does not contain a valid image")
+            return False
+        
+        # Save the decoded image to the secure location
+        os.makedirs(os.path.dirname(SECURE_LOGO_PATH), exist_ok=True)
+        with open(SECURE_LOGO_PATH, "wb") as img_file:
+            img_file.write(decoded_data)
+        
+        # Also restore the main logo
+        with open(LOGO_PATH, "wb") as img_file:
+            img_file.write(decoded_data)
+        
+        logger.info("Logo successfully restored from encoded backup")
+        return True
+    except Exception as e:
+        logger.error(f"Error decoding and restoring logo: {str(e)}")
+        return False
+
+def create_logo_backup():
+    """Create an additional backup of the logo file"""
+    if not os.path.exists(SECURE_LOGO_PATH):
+        logger.error("Cannot create backup: Secure logo file not found")
+        return False
     
-    # Start the integrity check thread
-    start_integrity_check()
+    try:
+        # Make sure the destination directory exists
+        os.makedirs(os.path.dirname(BACKUP_LOGO_PATH), exist_ok=True)
+        # Copy the secure logo to the backup location
+        shutil.copy2(SECURE_LOGO_PATH, BACKUP_LOGO_PATH)
+        logger.info("Logo backup created successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Error creating logo backup: {str(e)}")
+        return False
+
+def store_logo_metadata():
+    """Store metadata about the logo for additional verification"""
+    if not os.path.exists(SECURE_LOGO_PATH):
+        logger.error("Cannot store metadata: Secure logo file not found")
+        return False
+    
+    try:
+        img = Image.open(SECURE_LOGO_PATH)
+        
+        # Get image properties
+        metadata = {
+            "format": img.format,
+            "mode": img.mode,
+            "width": img.width,
+            "height": img.height,
+            "created": datetime.datetime.now().isoformat(),
+            "hash": calculate_file_hash(SECURE_LOGO_PATH),
+            "size": os.path.getsize(SECURE_LOGO_PATH)
+        }
+        
+        # Save metadata
+        os.makedirs(os.path.dirname(LOGO_METADATA_FILE), exist_ok=True)
+        with open(LOGO_METADATA_FILE, "w") as f:
+            f.write(json.dumps(metadata, indent=2))
+        
+        # Set read-only permissions
+        os.chmod(LOGO_METADATA_FILE, 0o444)
+        logger.info("Logo metadata stored successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Error storing logo metadata: {str(e)}")
+        return False
+
+def verify_logo_with_metadata():
+    """Verify logo integrity using stored metadata"""
+    if not os.path.exists(LOGO_METADATA_FILE) or not os.path.exists(LOGO_PATH):
+        logger.error("Cannot verify with metadata: Files missing")
+        return False
+    
+    try:
+        # Read metadata
+        with open(LOGO_METADATA_FILE, "r") as f:
+            metadata = json.loads(f.read())
+        
+        # Verify current logo
+        img = Image.open(LOGO_PATH)
+        current_hash = calculate_file_hash(LOGO_PATH)
+        
+        # Check core properties
+        if (img.width != metadata["width"] or 
+            img.height != metadata["height"] or 
+            current_hash != metadata["hash"]):
+            logger.warning("Logo integrity check failed using metadata")
+            return False
+        
+        logger.info("Logo verified successfully with metadata")
+        return True
+    except Exception as e:
+        logger.error(f"Error verifying logo with metadata: {str(e)}")
+        return False
+
+def multi_level_restore():
+    """Implement multi-level logo restoration with fallbacks"""
+    logger.info("Starting multi-level logo restoration")
+    
+    # Try primary restore
+    if os.path.exists(SECURE_LOGO_PATH):
+        if restore_logo():
+            logger.info("Logo restored from primary secure copy")
+            return True
+    
+    # Try backup restore
+    if os.path.exists(BACKUP_LOGO_PATH):
+        try:
+            shutil.copy2(BACKUP_LOGO_PATH, LOGO_PATH)
+            shutil.copy2(BACKUP_LOGO_PATH, SECURE_LOGO_PATH)
+            logger.info("Logo restored from backup copy")
+            return True
+        except Exception as e:
+            logger.error(f"Error restoring from backup: {str(e)}")
+    
+    # Try base64 encoded restore
+    if decode_and_restore_logo():
+        logger.info("Logo restored from base64 encoded backup")
+        return True
+    
+    logger.error("All logo restoration attempts failed")
+    return False
 
 def logo_integrity_checker():
     """Background thread function to periodically check logo integrity"""
+    logger.info("Starting logo integrity checker thread")
+    
+    # Perform initial setup
+    if not os.path.exists(BACKUP_LOGO_PATH):
+        create_logo_backup()
+    
+    if not os.path.exists(ENCODED_LOGO_PATH):
+        encode_logo_to_base64()
+    
+    if not os.path.exists(LOGO_METADATA_FILE):
+        store_logo_metadata()
+        
     while True:
-        verify_logo_integrity()
-        time.sleep(60)  # Check every 60 seconds
+        # Primary hash check
+        if not verify_logo_integrity():
+            logger.warning("Logo integrity check failed, attempting restoration")
+            multi_level_restore()
+        
+        # Secondary metadata check
+        if not verify_logo_with_metadata():
+            logger.warning("Logo metadata verification failed, attempting restoration")
+            multi_level_restore()
+        
+        time.sleep(CHECK_INTERVAL)
 
 def start_integrity_check():
     """Start a background thread to periodically check logo integrity"""
-    integrity_thread = threading.Thread(target=logo_integrity_checker, daemon=True)
-    integrity_thread.start()
+    try:
+        # Create directories if they don't exist
+        os.makedirs(os.path.dirname(SECURE_LOGO_PATH), exist_ok=True)
+        os.makedirs(os.path.dirname(LOGO_PATH), exist_ok=True)
+        
+        # Start the integrity checker thread
+        integrity_thread = threading.Thread(target=logo_integrity_checker, daemon=True)
+        integrity_thread.start()
+        logger.info("Logo integrity checker thread started")
+    except Exception as e:
+        logger.error(f"Error starting integrity check: {str(e)}")
