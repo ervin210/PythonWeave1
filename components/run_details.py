@@ -5,7 +5,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
 import io
-from utils import plot_metrics_history, create_parallel_coordinates_plot
+# Import visualization functions directly from the correct module
+from utils.visualization import plot_metrics_history, create_parallel_coordinates_plot
 
 def run_details():
     """
