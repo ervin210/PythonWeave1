@@ -6,18 +6,10 @@ import sys
 # Make sure we can see all modules
 sys.path.append(".")
 
-# Import from utils.py directly
-from utils import (
-    initialize_session_state,
-    authenticate_wandb,
-    logout_wandb,
-    get_projects,
-    get_runs,
-    get_run_details,
-    download_run_artifact,
-    get_sweeps,
-    get_sweep_details
-)
+# Import directly from utils.py
+from utils import initialize_session_state
+from utils import authenticate_wandb, logout_wandb, get_projects, get_runs
+from utils import get_run_details, download_run_artifact, get_sweeps, get_sweep_details
 
 # Import the quantum_assistant function
 from components.quantum_assistant import quantum_assistant
