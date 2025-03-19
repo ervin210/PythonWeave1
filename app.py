@@ -1,6 +1,7 @@
 import streamlit as st
 import wandb
 import os
+import sys
 from components import (
     render_sidebar,
     render_auth_page,
@@ -10,8 +11,11 @@ from components import (
     render_sweeps_page,
     render_sweep_details_page
 )
-from components.quantum_assistant import quantum_assistant
 from utils import initialize_session_state
+
+# Import quantum assistant functionality
+sys.path.append(".")
+from quantum_assistant import quantum_assistant
 
 # Page title and configuration
 st.set_page_config(
