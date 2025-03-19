@@ -401,7 +401,21 @@ def render_sidebar():
 # Authentication page
 def render_auth_page():
     """Render the authentication page."""
-    st.header("Connect to Weights & Biases")
+    from PIL import Image
+    
+    # Display logo and header in a row
+    col1, col2 = st.columns([1, 4])
+    
+    with col1:
+        try:
+            logo = Image.open("assets/quantum_logo.jpg")
+            st.image(logo, width=100)
+        except FileNotFoundError:
+            pass
+    
+    with col2:
+        st.header("Connect to Weights & Biases")
+        st.write("Authenticate to explore your quantum ML experiments")
     
     with st.form("auth_form"):
         api_key = st.text_input("W&B API Key", type="password", help="Enter your W&B API key to authenticate.")
@@ -1194,7 +1208,21 @@ def render_sweep_details_page():
 # Main application
 def main():
     # App header
-    st.title("Quantum AI Experiment Dashboard")
+    from PIL import Image
+    
+    # Display logo and title in a row
+    col1, col2 = st.columns([1, 4])
+    
+    with col1:
+        try:
+            logo = Image.open("assets/quantum_logo.jpg")
+            st.image(logo, width=120)
+        except FileNotFoundError:
+            pass
+    
+    with col2:
+        st.title("Quantum AI Experiment Dashboard")
+        st.markdown("*Integrate quantum computing with your ML experiments*")
     
     # Render sidebar for navigation
     render_sidebar()
