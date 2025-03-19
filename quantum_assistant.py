@@ -7,6 +7,7 @@ import qiskit
 from qiskit import QuantumCircuit
 from qiskit_aer import Aer
 from qiskit.visualization import plot_histogram
+from qiskit import execute  # Adding the missing import
 import pennylane as qml
 import wandb
 import base64
