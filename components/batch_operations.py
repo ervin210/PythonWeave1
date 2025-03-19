@@ -1234,6 +1234,7 @@ def batch_operations():
                         "Run": run["name"],
                         "ID": run["id"],
                         "State": run.get("state", "unknown"),
+                        "Created": pd.to_datetime(run["created_at"]).strftime('%Y-%m-%d %H:%M:%S') if "created_at" in run else "",
                         "Created At": run.get("created_at", "")
                     })
                 
@@ -1287,6 +1288,43 @@ def batch_operations():
                 # Add or update notes
                 st.markdown("#### Run Notes")
                 batch_notes = st.text_area("Enter notes to add to all selected runs:", height=100)
+                
+                # Custom metadata fields
+                st.markdown("#### Custom Metadata Fields")
+                st.markdown("Add or update custom metadata fields across all selected runs.")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    custom_field_key = st.text_input("Field Key", placeholder="e.g. experiment_name")
+                with col2:
+                    custom_field_value = st.text_input("Field Value", placeholder="e.g. Quantum Experiment 1")
+                
+                add_metadata_button = st.button("Add/Update Metadata Field")
+                
+                if add_metadata_button and custom_field_key and custom_field_value:
+                    try:
+                        api = wandb.Api()
+                        success_count = 0
+                        
+                        for run_id in selected_run_ids:
+                            try:
+                                run = api.run(f"{project_id}/{run_id}")
+                                if not hasattr(run, "summary"):
+                                    run.summary = {}
+                                
+                                # Set the custom metadata field
+                                run.summary[custom_field_key] = custom_field_value
+                                run.update()
+                                success_count += 1
+                            except Exception as e:
+                                st.error(f"Error updating metadata for run {run_id}: {str(e)}")
+                        
+                        if success_count > 0:
+                            st.success(f"Updated metadata for {success_count} runs. Refresh to see changes.")
+                    except Exception as e:
+                        st.error(f"Error accessing W&B API: {str(e)}")
+                elif add_metadata_button:
+                    st.warning("Please provide both a field key and value.")
                 
                 append_mode = st.checkbox("Append to existing notes (unchecked will replace notes)")
                 
@@ -1372,6 +1410,256 @@ def batch_operations():
                             st.error(f"Error accessing W&B API: {str(e)}")
                     else:
                         st.warning("Please enter both a metadata key and value.")
+                
+            # Artifact Management Tab
+            with artifact_tab:
+                st.markdown("### Artifact Management")
+                
+                st.markdown("""
+                This tab allows you to view and download artifacts from multiple runs.
+                You can batch download files, compare artifacts across runs, and more.
+                """)
+                
+                # Collect all artifacts from the selected runs
+                all_artifacts = []
+                
+                with st.spinner("Loading artifacts..."):
+                    for run in selected_runs:
+                        run_id = run["id"]
+                        try:
+                            api = wandb.Api()
+                            full_run = api.run(f"{project_id}/{run_id}")
+                            
+                            # Get files from this run
+                            files = []
+                            for file in full_run.files():
+                                files.append({
+                                    "name": file.name,
+                                    "size": file.size,
+                                    "updated_at": file.updatedAt,
+                                    "run_id": run_id,
+                                    "run_name": run["name"]
+                                })
+                            
+                            all_artifacts.extend(files)
+                        except Exception as e:
+                            st.error(f"Error loading artifacts for run {run_id}: {str(e)}")
+                
+                if all_artifacts:
+                    # Convert to DataFrame for easier filtering and display
+                    artifacts_df = pd.DataFrame(all_artifacts)
+                    
+                    # Convert file sizes to human-readable format
+                    def format_size(size_bytes):
+                        for unit in ['B', 'KB', 'MB', 'GB']:
+                            if size_bytes < 1024.0 or unit == 'GB':
+                                return f"{size_bytes:.2f} {unit}"
+                            size_bytes /= 1024.0
+                    
+                    artifacts_df['readable_size'] = artifacts_df['size'].apply(format_size)
+                    
+                    # Add formatted date
+                    artifacts_df['date'] = pd.to_datetime(artifacts_df['updated_at']).dt.strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    # Display artifact table
+                    st.subheader("All Artifacts")
+                    st.dataframe(artifacts_df[['name', 'readable_size', 'date', 'run_name', 'run_id']], use_container_width=True)
+                    
+                    # Filter artifacts
+                    st.subheader("Filter Artifacts")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        # Filter by file extension
+                        file_extensions = ['All'] + sorted(list({name.split('.')[-1] if '.' in name else 'No extension' 
+                                                        for name in artifacts_df['name']}))
+                        selected_extension = st.selectbox("Filter by file type:", file_extensions)
+                    
+                    with col2:
+                        # Filter by run
+                        run_options = ['All'] + sorted(list(set(artifacts_df['run_name'])))
+                        selected_run = st.selectbox("Filter by run:", run_options)
+                    
+                    # Apply filters
+                    filtered_df = artifacts_df.copy()
+                    if selected_extension != 'All':
+                        filtered_df = filtered_df[filtered_df['name'].str.endswith(f'.{selected_extension}')]
+                    if selected_run != 'All':
+                        filtered_df = filtered_df[filtered_df['run_name'] == selected_run]
+                    
+                    # Search filter
+                    search_term = st.text_input("Search artifacts by name:", placeholder="Enter search term...")
+                    if search_term:
+                        filtered_df = filtered_df[filtered_df['name'].str.contains(search_term, case=False)]
+                    
+                    # Display filtered artifacts
+                    st.subheader("Filtered Artifacts")
+                    if not filtered_df.empty:
+                        st.dataframe(filtered_df[['name', 'readable_size', 'date', 'run_name', 'run_id']], use_container_width=True)
+                        
+                        # Batch download section
+                        st.subheader("Batch Download")
+                        
+                        # Multi-select for files to download
+                        file_options = [f"{row['name']} ({row['run_name']})" for _, row in filtered_df.iterrows()]
+                        selected_files = st.multiselect("Select files to download:", file_options)
+                        
+                        if selected_files:
+                            if st.button("Download Selected Files"):
+                                try:
+                                    # Create a temporary directory to store files
+                                    with tempfile.TemporaryDirectory() as tmp_dir:
+                                        downloaded_files = []
+                                        
+                                        for file_option in selected_files:
+                                            file_name = file_option.split(" (")[0]
+                                            run_name = file_option.split("(")[1].split(")")[0]
+                                            
+                                            # Find run_id for this file
+                                            file_info = filtered_df[(filtered_df['name'] == file_name) & 
+                                                                   (filtered_df['run_name'] == run_name)].iloc[0]
+                                            run_id = file_info['run_id']
+                                            
+                                            try:
+                                                # Download the file
+                                                api = wandb.Api()
+                                                run = api.run(f"{project_id}/{run_id}")
+                                                
+                                                file_path = os.path.join(tmp_dir, f"{run_name}_{file_name}")
+                                                run.file(file_name).download(root=tmp_dir, replace=True)
+                                                actual_path = os.path.join(tmp_dir, file_name)
+                                                
+                                                if os.path.exists(actual_path):
+                                                    os.rename(actual_path, file_path)
+                                                    downloaded_files.append((file_path, f"{run_name}_{file_name}"))
+                                            except Exception as e:
+                                                st.error(f"Error downloading {file_name} from run {run_id}: {str(e)}")
+                                        
+                                        if downloaded_files:
+                                            # Create a zip file with all downloaded files
+                                            zip_path = os.path.join(tmp_dir, "batch_artifacts.zip")
+                                            with zipfile.ZipFile(zip_path, 'w') as zipf:
+                                                for file_path, arcname in downloaded_files:
+                                                    zipf.write(file_path, arcname=arcname)
+                                            
+                                            # Read the zip file and provide download link
+                                            with open(zip_path, "rb") as f:
+                                                zip_data = f.read()
+                                                
+                                            b64 = base64.b64encode(zip_data).decode()
+                                            href = f'<a href="data:application/zip;base64,{b64}" download="batch_artifacts.zip">Download ZIP File</a>'
+                                            st.markdown(href, unsafe_allow_html=True)
+                                            st.success(f"Successfully downloaded {len(downloaded_files)} files.")
+                                        else:
+                                            st.error("No files were successfully downloaded.")
+                                except Exception as e:
+                                    st.error(f"Error creating batch download: {str(e)}")
+                    else:
+                        st.info("No artifacts match the selected filters.")
+                else:
+                    st.info("No artifacts found for the selected runs.")
+                
+            # Deletion & Archiving Tab
+            with deletion_tab:
+                st.markdown("### Deletion & Archiving")
+                
+                st.markdown("""
+                This tab allows you to perform batch deletion or archiving operations.
+                Please use with caution as these operations cannot be easily undone.
+                """)
+                
+                # Create tabs for different operations
+                delete_tab, archive_tab = st.tabs([
+                    "Delete Runs", "Archive Runs"
+                ])
+                
+                # Delete Runs Tab
+                with delete_tab:
+                    st.markdown("#### Delete Selected Runs")
+                    st.warning("⚠️ **Warning**: Deleting runs is permanent and cannot be undone.")
+                    
+                    # Display runs to be deleted
+                    delete_data = []
+                    for run in selected_runs:
+                        delete_data.append({
+                            "Run": run["name"],
+                            "ID": run["id"],
+                            "Created": pd.to_datetime(run["created_at"]).strftime('%Y-%m-%d %H:%M:%S') if "created_at" in run else "",
+                            "State": run["state"]
+                        })
+                    
+                    delete_df = pd.DataFrame(delete_data)
+                    st.dataframe(delete_df, use_container_width=True)
+                    
+                    # Confirm deletion
+                    confirm_text = st.text_input("Type 'DELETE' to confirm deletion:")
+                    
+                    if st.button("Delete Selected Runs"):
+                        if confirm_text == "DELETE":
+                            try:
+                                api = wandb.Api()
+                                success_count = 0
+                                
+                                for run_id in selected_run_ids:
+                                    try:
+                                        run = api.run(f"{project_id}/{run_id}")
+                                        run.delete()
+                                        success_count += 1
+                                    except Exception as e:
+                                        st.error(f"Error deleting run {run_id}: {str(e)}")
+                                
+                                if success_count > 0:
+                                    st.success(f"Successfully deleted {success_count} runs.")
+                                    # We need to refresh the project runs
+                                    st.session_state.pop('project_runs', None)
+                                    st.rerun()
+                            except Exception as e:
+                                st.error(f"Error accessing W&B API: {str(e)}")
+                        else:
+                            st.error("Please type 'DELETE' to confirm the deletion.")
+                
+                # Archive Runs Tab
+                with archive_tab:
+                    st.markdown("#### Archive Selected Runs")
+                    st.info("Archiving runs marks them as archived in Weights & Biases without deleting data.")
+                    
+                    # Display runs to be archived
+                    archive_data = []
+                    for run in selected_runs:
+                        archive_data.append({
+                            "Run": run["name"],
+                            "ID": run["id"],
+                            "Created": pd.to_datetime(run["created_at"]).strftime('%Y-%m-%d %H:%M:%S') if "created_at" in run else "",
+                            "State": run["state"]
+                        })
+                    
+                    archive_df = pd.DataFrame(archive_data)
+                    st.dataframe(archive_df, use_container_width=True)
+                    
+                    if st.button("Archive Selected Runs"):
+                        try:
+                            api = wandb.Api()
+                            success_count = 0
+                            
+                            for run_id in selected_run_ids:
+                                try:
+                                    run = api.run(f"{project_id}/{run_id}")
+                                    # Add an archive tag to the run
+                                    run.tags = list(set(run.tags + ["archived"]))
+                                    # Also update its state if possible
+                                    if hasattr(run, "state"):
+                                        run.state = "archived"
+                                    run.update()
+                                    success_count += 1
+                                except Exception as e:
+                                    st.error(f"Error archiving run {run_id}: {str(e)}")
+                            
+                            if success_count > 0:
+                                st.success(f"Successfully archived {success_count} runs by adding 'archived' tag.")
+                                # We should refresh the project runs
+                                st.session_state.refresh_required = True
+                        except Exception as e:
+                            st.error(f"Error accessing W&B API: {str(e)}")
     
     else:
         if selected_run_ids:
