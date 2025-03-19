@@ -351,6 +351,10 @@ def render_sidebar():
         if st.sidebar.button("🧠 Quantum AI Assistant", use_container_width=True):
             st.session_state.current_page = "quantum_assistant"
             
+        # Integration Hub button
+        if st.sidebar.button("🔌 Integration Hub", use_container_width=True):
+            st.session_state.current_page = "integration_hub"
+            
         # Project management buttons
         if st.sidebar.button("📋 Projects", use_container_width=True):
             st.session_state.current_page = "projects"
@@ -1192,6 +1196,9 @@ def main():
     else:
         if st.session_state.current_page == "quantum_assistant":
             quantum_assistant()
+        elif st.session_state.current_page == "integration_hub":
+            from components.integration_hub import integration_hub
+            integration_hub()
         elif st.session_state.current_page == "projects":
             render_projects_page()
         elif st.session_state.current_page == "runs":
