@@ -5,6 +5,8 @@ import os
 import sys
 import io
 import tempfile
+import uuid
+import requests
 from datetime import datetime
 import time
 
@@ -31,6 +33,13 @@ def initialize_session_state():
     
     if "current_page" not in st.session_state:
         st.session_state.current_page = "projects"
+        
+    # For OAuth state management
+    if "social_auth_state" not in st.session_state:
+        st.session_state.social_auth_state = str(uuid.uuid4())
+        
+    if "oauth_provider" not in st.session_state:
+        st.session_state.oauth_provider = None
     
     if "selected_project" not in st.session_state:
         st.session_state.selected_project = None
@@ -367,6 +376,9 @@ def export_to_csv(data, filename):
 
 # Import the quantum_assistant function
 from components.quantum_assistant import quantum_assistant
+
+# Import social authentication
+from components.social_auth import social_login_page, social_auth_callback_handler
 
 # Page title and configuration
 st.set_page_config(
