@@ -548,10 +548,29 @@ def run_quantum_circuit(circuit):
         # Use simulator while waiting for token
         st.warning("Using local simulator until IBM Quantum authentication is completed")
         from qiskit_aer import AerSimulator
+        from qiskit.primitives import Sampler
+        
+        # Create a local Sampler that uses AerSimulator
         backend = AerSimulator()
-        job = backend.run(circuit, shots=1024)
+        sampler = Sampler(backend=backend)
+        
+        # Run the sampler
+        job = sampler.run(circuits=[circuit], shots=1024)
         result = job.result()
-        return result
+        
+        # Return a custom result object that provides the expected interface
+        class CustomResult:
+            def get_counts(self, _=None):
+                quasi_dist = result.quasi_dists[0]
+                counts = {}
+                for bitstring, probability in quasi_dist.items():
+                    # Convert integer to binary string
+                    n_bits = circuit.num_clbits
+                    binary = format(bitstring, f'0{n_bits}b')
+                    counts[binary] = int(probability * 1024)  # Scale by shots
+                return counts
+                
+        return CustomResult()
     else:
         # We have IBMQ credentials, try to use real quantum computer
         try:
@@ -576,10 +595,29 @@ def run_quantum_circuit(circuit):
                 # Use simulator while waiting
                 st.warning("Using local simulator until backend selection is confirmed")
                 from qiskit_aer import AerSimulator
+                from qiskit.primitives import Sampler
+                
+                # Create a local Sampler that uses AerSimulator
                 backend = AerSimulator()
-                job = backend.run(circuit, shots=1024)
+                sampler = Sampler(backend=backend)
+                
+                # Run the sampler
+                job = sampler.run(circuits=[circuit], shots=1024)
                 result = job.result()
-                return result
+                
+                # Return a custom result object that provides the expected interface
+                class CustomResult:
+                    def get_counts(self, _=None):
+                        quasi_dist = result.quasi_dists[0]
+                        counts = {}
+                        for bitstring, probability in quasi_dist.items():
+                            # Convert integer to binary string
+                            n_bits = circuit.num_clbits
+                            binary = format(bitstring, f'0{n_bits}b')
+                            counts[binary] = int(probability * 1024)  # Scale by shots
+                        return counts
+                        
+                return CustomResult()
             else:
                 # Use the selected backend with QiskitRuntimeService
                 selected_backend = st.session_state.quantum_backend

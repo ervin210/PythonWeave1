@@ -194,27 +194,55 @@ def create_and_run_circuit():
                         # Determine if simulator or real hardware
                         is_simulator = backend_instance.configuration().simulator
                         
+                        # Use the Sampler primitive for all backends
+                        from qiskit_ibm_runtime import Sampler, Options
+                        
+                        # Set options (shots, optimization level, etc)
+                        options = Options()
+                        options.execution.shots = shots
+                        options.optimization_level = 1
+                        
+                        # Create the Sampler instance
+                        sampler = Sampler(session=service, backend=selected_backend, options=options)
+                        
+                        # Submit the circuit
+                        job = sampler.run(circuits=[circuit])
+                        job_id = job.job_id()
+                        st.success(f"Job submitted to {selected_backend}! Job ID: {job_id}")
+                        
                         if is_simulator:
-                            # For simulators, run directly
-                            job = backend_instance.run(circuit, shots=shots)
-                            st.success(f"Job submitted to {selected_backend}! Job ID: {job.job_id()}")
-                            
-                            # Wait for completion (simulators are usually quick)
+                            # For simulators, wait for completion (usually quick)
                             st.info("Waiting for job to complete...")
                             result = job.result()
                             
+                            # Convert quasi_dists to traditional counts format
+                            quasi_dist = result.quasi_dists[0]
+                            counts = {}
+                            for bitstring, probability in quasi_dist.items():
+                                # Convert integer to binary string and format it
+                                n_bits = circuit.num_clbits
+                                binary = format(bitstring, f'0{n_bits}b')
+                                counts[binary] = int(probability * shots)
+                            
                             # Display results
-                            counts = result.get_counts(circuit)
                             fig = plot_histogram(counts)
                             st.pyplot(fig)
                             
+                            # Create result object compatible with save_job_results
+                            class CustomResult:
+                                def __init__(self, counts):
+                                    self._counts = counts
+                                
+                                def get_counts(self, _=None):
+                                    return self._counts
+                            
+                            custom_result = CustomResult(counts)
+                            
                             # Save results if requested
                             if save_job:
-                                save_job_results(job.job_id(), selected_backend, circuit, result)
+                                save_job_results(job_id, selected_backend, circuit, custom_result)
                         else:
-                            # For real QPUs, submit the job and provide status
-                            job = backend_instance.run(circuit, shots=shots)
-                            st.success(f"Job submitted to {selected_backend}! Job ID: {job.job_id()}")
+                            # For real QPUs, provide status updates
                             st.info("The job has been submitted to the queue. Check the 'Manage Jobs' tab for status and results.")
                             
                             # Save job info for tracking
