@@ -264,16 +264,64 @@ class AutoUpdater:
                     success = result.returncode == 0
                 
                 elif self.platform_name == "windows" and filename.endswith('.exe'):
-                    # Run Windows installer using subprocess
+                    # For Windows, try to use specialized Windows updater
                     try:
+                        from quantum_ai_assistant.windows_updater import (
+                            terminate_running_instance, setup_update_task, install_update
+                        )
+                        
+                        # First try to terminate any running instances
                         if callback:
-                            callback("Starting Windows installer...")
-                        subprocess.Popen([download_path], shell=True)
-                        success = True
+                            callback("Checking for running instances...")
+                        
+                        terminate_running_instance("QuantumAIAssistant.exe")
+                        
+                        # Then set up a delayed installation task
+                        if callback:
+                            callback("Setting up update installation...")
+                            
+                        # Try to use the Windows update task system for deferred installation
+                        # This helps when the current executable is locked
+                        if setup_update_task(download_path, silent=True, delay=3):
+                            if callback:
+                                callback("Update scheduled successfully.")
+                            success = True
+                        else:
+                            # If task setup fails, try direct installation
+                            if callback:
+                                callback("Attempting direct installation...")
+                            if install_update(download_path, silent=True, 
+                                           callback=lambda msg: callback(f"Install: {msg}") if callback else None):
+                                success = True
+                            else:
+                                # Last resort, just try to run the installer directly
+                                if callback:
+                                    callback("Starting Windows installer directly...")
+                                subprocess.Popen([download_path], shell=True)
+                                success = True
+                        
+                    except ImportError:
+                        # If specialized Windows module is not available, fall back to basic approach
+                        try:
+                            if callback:
+                                callback("Starting Windows installer...")
+                            subprocess.Popen([download_path], shell=True)
+                            success = True
+                        except Exception as e:
+                            if callback:
+                                callback(f"Failed to start installer: {e}")
+                            success = False
                     except Exception as e:
                         if callback:
-                            callback(f"Failed to start installer: {e}")
-                        success = False
+                            callback(f"Windows update error: {e}. Trying basic installation...")
+                        # Fall back to basic installation method
+                        try:
+                            subprocess.Popen([download_path], shell=True)
+                            success = True
+                        except Exception as basic_e:
+                            if callback:
+                                callback(f"Failed to start installer: {basic_e}")
+                            success = False
                 
                 elif self.platform_name == "macos" and filename.endswith('.dmg'):
                     # Mount DMG and copy app to Applications

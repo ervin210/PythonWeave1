@@ -13,13 +13,139 @@ import zipfile
 import tempfile
 import shutil
 import argparse
+import time
 from urllib.request import urlretrieve
 
-# The URL to the release pages where packages are stored
-# Primary GitHub releases URL
+# Release URLs - Main and Backup
 GITHUB_RELEASE_BASE_URL = "https://github.com/quantum-ai-assistant/releases/download/v1.0.0"
-# Backup URL in case GitHub is inaccessible
 BACKUP_RELEASE_BASE_URL = "https://quantum-ai-assistant.com/downloads/v1.0.0"
+
+# Import Windows-specific functions if on Windows
+if platform.system().lower() == "windows":
+    try:
+        # Try to import our specialized Windows functions
+        sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from quantum_ai_assistant.windows_updater import (
+            is_admin, elevate_privileges, download_update, 
+            install_update, create_windows_shortcut,
+            setup_update_task, terminate_running_instance
+        )
+    except ImportError:
+        # Define minimal versions of the functions for standalone use
+        def is_admin():
+            """Check if running with admin privileges"""
+            try:
+                import ctypes
+                return ctypes.windll.shell32.IsUserAnAdmin() != 0
+            except:
+                return False
+        
+        def elevate_privileges(script_path, *args):
+            """Request elevation to admin privileges"""
+            try:
+                import ctypes
+                arguments = ' '.join(args)
+                ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, 
+                                                  f'"{script_path}" {arguments}', None, 1)
+                return True
+            except:
+                return False
+        
+        def download_update(url, callback=None):
+            """Download file with progress reporting"""
+            try:
+                # Simple download implementation
+                if callback:
+                    callback(f"Downloading from {url}...")
+                
+                temp_dir = tempfile.mkdtemp()
+                filename = os.path.basename(url)
+                local_path = os.path.join(temp_dir, filename)
+                
+                # Download with basic progress
+                def report_progress(count, block_size, total_size):
+                    if total_size > 0 and callback:
+                        percent = min(100, int(count * block_size * 100 / total_size))
+                        callback(f"Downloaded {percent}%")
+                
+                urlretrieve(url, local_path, report_progress)
+                
+                if callback:
+                    callback("Download complete")
+                
+                return local_path
+            except Exception as e:
+                if callback:
+                    callback(f"Download failed: {e}")
+                return None
+        
+        def install_update(installer_path, silent=False, callback=None):
+            """Start the installer"""
+            try:
+                if callback:
+                    callback("Starting installer...")
+                
+                cmd = [installer_path]
+                if silent:
+                    cmd.append('/S')
+                
+                subprocess.Popen(cmd)
+                
+                if callback:
+                    callback("Installer started")
+                
+                return True
+            except Exception as e:
+                if callback:
+                    callback(f"Failed to start installer: {e}")
+                return False
+        
+        def create_windows_shortcut(target_path, shortcut_path=None, description=None, icon_path=None):
+            """Create a Windows shortcut"""
+            try:
+                if shortcut_path is None:
+                    desktop = os.path.join(os.path.expanduser('~'), 'Desktop')
+                    shortcut_path = os.path.join(desktop, "Quantum AI Assistant.lnk")
+                
+                # Create a batch file as a fallback
+                bat_path = shortcut_path.replace('.lnk', '.bat')
+                with open(bat_path, 'w') as f:
+                    f.write(f'@echo off\nstart "" "{target_path}"\n')
+                
+                return bat_path
+            except:
+                return None
+        
+        def setup_update_task(installer_path, silent=True, delay=10):
+            """Set up a delayed installer task"""
+            try:
+                batch_path = os.path.join(tempfile.gettempdir(), "run_installer.bat")
+                with open(batch_path, 'w') as f:
+                    f.write("@echo off\n")
+                    f.write(f"timeout /t {delay} /nobreak\n")
+                    install_cmd = f'"{installer_path}"'
+                    if silent:
+                        install_cmd += " /S"
+                    f.write(f"start \"\" {install_cmd}\n")
+                    f.write("del \"%~f0\"\n")
+                
+                subprocess.Popen(["cmd", "/c", batch_path])
+                return True
+            except:
+                return False
+        
+        def terminate_running_instance(process_name="QuantumAIAssistant.exe"):
+            """Terminate a process by name"""
+            try:
+                subprocess.call(["taskkill", "/F", "/IM", process_name], 
+                              stdout=subprocess.DEVNULL, 
+                              stderr=subprocess.DEVNULL)
+                time.sleep(1)
+                return True
+            except:
+                return False
+
+# URLs are already defined above
 
 def get_platform_info():
     """Get information about the current platform"""
@@ -113,12 +239,56 @@ def download_package(platform_name, arch, extension, destination, use_python_pac
 def setup_package(package_path, platform_name, extension, install_dir):
     """Set up the downloaded package"""
     if platform_name == "windows" and extension == ".exe":
-        # For Windows executables, just create a shortcut
-        print(f"Installation complete. You can run the application by double-clicking {package_path}")
+        # For Windows executables
+        print("Setting up Windows package...")
+        
+        # Try to use the specialized Windows updater module if available
+        try:
+            # Check if we're running as administrator
+            if 'is_admin' in globals() and not is_admin():
+                print("Administrator privileges required for installation.")
+                print("Requesting elevation...")
+                
+                if 'elevate_privileges' in globals():
+                    # Re-run with admin privileges
+                    if elevate_privileges(sys.argv[0], "--destination", install_dir):
+                        print("Installation will continue with administrator privileges.")
+                        sys.exit(0)
+            
+            # Install the package
+            if 'install_update' in globals():
+                print("Installing package using Windows installer...")
+                if install_update(package_path, silent=False, 
+                                 callback=lambda msg: print(f"Install: {msg}")):
+                    print("Installation process started successfully.")
+                else:
+                    # Fall back to manual instruction
+                    print(f"Please run the installer manually: {package_path}")
+            else:
+                # Default method
+                print(f"Installation complete. You can run the application by double-clicking {package_path}")
+                
+                # Try to run the installer
+                try:
+                    subprocess.Popen([package_path])
+                    print("Installer started. Please follow on-screen instructions.")
+                except Exception as e:
+                    print(f"Could not start installer automatically: {e}")
+                    print(f"Please run the installer manually: {package_path}")
+        except Exception as e:
+            print(f"Windows installation error: {e}")
+            print(f"Please run the installer manually: {package_path}")
         
     elif platform_name == "macos" and extension == ".dmg":
         # For macOS DMG files
         print(f"Installation complete. Please open {package_path} and drag the application to your Applications folder.")
+        
+        # Try to mount the DMG file
+        try:
+            subprocess.run(["open", package_path])
+            print("DMG file opened. Please follow the on-screen instructions.")
+        except Exception as e:
+            print(f"Could not open DMG file automatically: {e}")
         
     elif platform_name == "linux" and extension == ".AppImage":
         # For Linux AppImage files, make it executable
@@ -126,6 +296,28 @@ def setup_package(package_path, platform_name, extension, install_dir):
         try:
             os.chmod(package_path, 0o755)
             print(f"Installation complete. You can run the application by double-clicking {package_path}")
+            
+            # Try to create XDG desktop entry
+            try:
+                app_name = "QuantumAIAssistant"
+                desktop_dir = os.path.expanduser("~/.local/share/applications")
+                os.makedirs(desktop_dir, exist_ok=True)
+                desktop_path = os.path.join(desktop_dir, f"{app_name}.desktop")
+                
+                with open(desktop_path, 'w') as f:
+                    f.write("[Desktop Entry]\n")
+                    f.write("Type=Application\n")
+                    f.write("Name=Quantum AI Assistant\n")
+                    f.write(f"Exec={package_path}\n")
+                    f.write("Icon=quantum\n")
+                    f.write("Terminal=false\n")
+                    f.write("Categories=Science;Education;\n")
+                
+                os.chmod(desktop_path, 0o755)
+                print(f"Desktop entry created at {desktop_path}")
+            except Exception as e:
+                print(f"Could not create desktop entry: {e}")
+                
         except Exception as e:
             print(f"Error making file executable: {e}")
     
@@ -148,23 +340,51 @@ def create_desktop_shortcut(target_path, platform_name):
     if platform_name == "windows":
         shortcut_path = os.path.join(desktop_path, "Quantum AI Assistant.lnk")
         print(f"Creating desktop shortcut at {shortcut_path}...")
+        
+        # Try to use the specialized Windows function if available
         try:
-            # Try to import the winshell module for Windows shortcut creation
+            if 'create_windows_shortcut' in globals():
+                # Use the specialized function
+                result = create_windows_shortcut(
+                    target_path, 
+                    shortcut_path, 
+                    "Quantum AI Assistant - Quantum Computing with W&B Integration",
+                    None  # No custom icon path
+                )
+                if result:
+                    print(f"Shortcut created at {result}")
+                    return
+            
+            # Fall back to default methods if specialized function failed or isn't available
             try:
-                import winshell
-                from win32com.client import Dispatch
+                # Try COM automation first
+                try:
+                    import pythoncom
+                    from win32com.client import Dispatch
+                    
+                    shell = Dispatch('WScript.Shell')
+                    shortcut = shell.CreateShortCut(shortcut_path)
+                    shortcut.Targetpath = target_path
+                    shortcut.WorkingDirectory = os.path.dirname(target_path)
+                    shortcut.Description = "Quantum AI Assistant"
+                    shortcut.save()
+                    print(f"Shortcut created at {shortcut_path}")
+                except ImportError:
+                    # Fall back to direct file creation if COM is not available
+                    with open(shortcut_path + ".bat", 'w') as f:
+                        f.write(f'@echo off\nstart "" "{target_path}"\n')
+                    print(f"Batch file created at {shortcut_path}.bat")
+            except Exception as e:
+                print(f"Error creating Windows shortcut via standard methods: {e}")
                 
-                shortcut = Dispatch('WScript.Shell').CreateShortCut(shortcut_path)
-                shortcut.Targetpath = target_path
-                shortcut.WorkingDirectory = os.path.dirname(target_path)
-                shortcut.Description = "Quantum AI Assistant"
-                shortcut.save()
-                print(f"Shortcut created at {shortcut_path}")
-            except ImportError:
-                # Fall back to direct file creation if winshell is not available
-                with open(shortcut_path + ".bat", 'w') as f:
-                    f.write(f'@echo off\n"{target_path}"\n')
-                print(f"Batch file created at {shortcut_path}.bat")
+                # Last resort - create a simple batch file
+                try:
+                    batch_path = os.path.join(desktop_path, "Quantum AI Assistant.bat")
+                    with open(batch_path, 'w') as f:
+                        f.write(f'@echo off\necho Starting Quantum AI Assistant...\n"{target_path}"\n')
+                    print(f"Created batch file shortcut at {batch_path}")
+                except Exception as batch_e:
+                    print(f"All shortcut creation methods failed: {batch_e}")
         except Exception as e:
             print(f"Error creating Windows shortcut: {e}")
         
