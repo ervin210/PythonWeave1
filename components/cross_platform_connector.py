@@ -71,18 +71,168 @@ def cross_platform_connector():
             # Native application options
             st.markdown("#### Native Application")
             
-            app_cols = st.columns(2)
-            with app_cols[0]:
-                st.download_button(
-                    label=f"Download for {desktop_os}",
-                    data="This would be the application installer in a real implementation",
-                    file_name=f"quantum_assistant_{desktop_os.lower()}.zip",
-                    mime="application/zip"
-                )
+            # Implementation for file extraction and installation
+            import zipfile
+            import tempfile
+            import base64
+            import io
+            import subprocess
+            import time
             
-            with app_cols[1]:
-                st.checkbox("Enable GPU Acceleration", value=True)
-                st.checkbox("Enable Automatic Updates", value=True)
+            # Create a sample ZIP file with contents representing the application
+            def create_application_package(os_type):
+                # Create an in-memory zip file
+                zip_buffer = io.BytesIO()
+                with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    # Add a README file
+                    zipf.writestr('README.txt', f'Quantum AI Assistant for {os_type}\n'
+                                              f'================================\n\n'
+                                              f'This package contains the Quantum AI Assistant application for {os_type}.\n'
+                                              f'Installation instructions are in INSTALL.txt.\n')
+                    
+                    # Add an installation guide
+                    zipf.writestr('INSTALL.txt', f'Installation Instructions for {os_type}\n'
+                                               f'================================\n\n'
+                                               f'1. Extract all files to a directory of your choice.\n'
+                                               f'2. Run the setup script appropriate for your system.\n'
+                                               f'3. Follow the on-screen instructions.\n')
+                    
+                    # Add a setup script based on OS
+                    if os_type.lower() == 'windows':
+                        zipf.writestr('setup.bat', '@echo off\necho Installing Quantum AI Assistant for Windows...\necho This is a simulation.\necho Installation complete!\npause\n')
+                    elif os_type.lower() in ['macos', 'linux']:
+                        zipf.writestr('setup.sh', '#!/bin/bash\necho "Installing Quantum AI Assistant for Linux/macOS..."\necho "This is a simulation."\necho "Installation complete!"\nread -p "Press Enter to continue..."\n')
+                    
+                    # Add a sample configuration file
+                    zipf.writestr('config.json', '{\n  "version": "1.0.0",\n  "use_gpu": true,\n  "auto_update": true,\n  "data_dir": "./data",\n  "log_level": "info"\n}')
+                    
+                    # Add a sample application file
+                    zipf.writestr('quantum_assistant.py', '# This is a simulated application file\n\nprint("Quantum AI Assistant starting...")\nprint("Connecting to quantum backend...")\nprint("Ready!")\n')
+                
+                # Reset buffer position and return the data
+                zip_buffer.seek(0)
+                return zip_buffer.getvalue()
+            
+            # Create tabs for download and installation
+            dl_tab, install_tab = st.tabs(["Download", "Install"])
+            
+            with dl_tab:
+                app_cols = st.columns(2)
+                with app_cols[0]:
+                    # Create and offer the application package for download
+                    app_package = create_application_package(desktop_os)
+                    st.download_button(
+                        label=f"Download for {desktop_os}",
+                        data=app_package,
+                        file_name=f"quantum_assistant_{desktop_os.lower()}.zip",
+                        mime="application/zip",
+                        help=f"Download the Quantum AI Assistant application package for {desktop_os}"
+                    )
+                
+                with app_cols[1]:
+                    st.checkbox("Enable GPU Acceleration", value=True, 
+                                help="Use GPU acceleration for quantum simulations when available")
+                    st.checkbox("Enable Automatic Updates", value=True,
+                               help="Automatically check for and install updates")
+            
+            with install_tab:
+                st.markdown("### Installation Utility")
+                st.markdown("Upload a previously downloaded package to extract and install:")
+                
+                uploaded_file = st.file_uploader("Upload installation package", type="zip")
+                
+                if uploaded_file is not None:
+                    # Create a temporary directory to extract files
+                    with tempfile.TemporaryDirectory() as tmp_dir:
+                        # Extract the zip file
+                        with st.spinner("Extracting package..."):
+                            zip_data = uploaded_file.getvalue()
+                            
+                            # Save zip to temp directory
+                            zip_path = os.path.join(tmp_dir, "package.zip")
+                            with open(zip_path, "wb") as f:
+                                f.write(zip_data)
+                            
+                            # Extract the zip
+                            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                                zip_ref.extractall(tmp_dir)
+                            
+                            # Show extraction completed
+                            time.sleep(1)  # Simulate processing time
+                        
+                        # Show extracted files
+                        extracted_files = os.listdir(tmp_dir)
+                        extracted_files.remove("package.zip")  # Remove the zip file from list
+                        
+                        st.success(f"Package extracted successfully! Found {len(extracted_files)} files.")
+                        
+                        # Show file list
+                        with st.expander("View extracted files"):
+                            for file in extracted_files:
+                                file_path = os.path.join(tmp_dir, file)
+                                if os.path.isfile(file_path):
+                                    # If text file, show content
+                                    if file.endswith(('.txt', '.json', '.py', '.sh', '.bat')):
+                                        with open(file_path, 'r') as f:
+                                            content = f.read()
+                                        st.code(content, language='python' if file.endswith('.py') else 'bash' if file.endswith('.sh') else None)
+                                    else:
+                                        st.text(f"Binary file: {file}")
+                        
+                        # Installation options
+                        st.subheader("Installation Options")
+                        install_dir = st.text_input("Installation Directory", value="~/quantum-assistant")
+                        
+                        # Options based on OS
+                        if desktop_os.lower() == 'windows':
+                            st.checkbox("Create desktop shortcut", value=True)
+                            st.checkbox("Add to Start menu", value=True)
+                        elif desktop_os.lower() == 'macos':
+                            st.checkbox("Add to Applications folder", value=True)
+                            st.checkbox("Create Dock icon", value=True)
+                        elif desktop_os.lower() == 'linux':
+                            st.checkbox("Create application launcher", value=True)
+                            st.checkbox("Add to system PATH", value=True)
+                        
+                        # Install button
+                        if st.button("Install Now"):
+                            # Simulate installation process
+                            progress_bar = st.progress(0)
+                            status_text = st.empty()
+                            
+                            # Simulate installation steps
+                            for i, step in enumerate([
+                                "Preparing installation...",
+                                "Copying files...",
+                                "Configuring environment...",
+                                "Setting up quantum backends...",
+                                "Registering application...",
+                                "Cleaning up..."
+                            ]):
+                                status_text.text(step)
+                                progress_value = (i + 1) / 7
+                                progress_bar.progress(progress_value)
+                                time.sleep(0.5)  # Simulate work being done
+                            
+                            # Complete
+                            progress_bar.progress(1.0)
+                            status_text.text("Installation completed successfully!")
+                            
+                            st.success(f"Quantum AI Assistant has been installed to {install_dir}")
+                            st.info("You can now launch the application from your applications menu or desktop shortcut.")
+                
+                else:
+                    st.info("Please upload a Quantum AI Assistant installation package (.zip file)")
+                    
+                    # Provide sample installation instructions
+                    with st.expander("Installation Instructions"):
+                        st.markdown("""
+                        1. Download the appropriate package for your operating system using the Download tab
+                        2. Upload the downloaded .zip file using the file uploader above
+                        3. Review the extracted files and set installation options
+                        4. Click "Install Now" to complete the installation
+                        """)
+            
         
         elif platform_category == "Mobile":
             mobile_os = st.selectbox(
@@ -477,7 +627,7 @@ def cross_platform_connector():
         
         # Create simulated connectivity data
         connectivity_data = pd.DataFrame({
-            "Timestamp": pd.date_range(start="2025-03-19", periods=24, freq="H"),
+            "Timestamp": pd.date_range(start="2025-03-19", periods=24, freq="h"),
             "Broadband": np.random.uniform(0.95, 1.0, 24),
             "WiFi": np.random.uniform(0.9, 1.0, 24),
             "5G": np.random.uniform(0.85, 1.0, 24),
