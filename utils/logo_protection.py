@@ -36,13 +36,24 @@ def store_original_hash():
         # If secure copy doesn't exist yet, we can't store a hash
         return False
     
+    # If hash file already exists, no need to recreate it
+    if os.path.exists(LOGO_HASH_FILE):
+        return True
+        
     logo_hash = calculate_file_hash(SECURE_LOGO_PATH)
     
     if logo_hash:
         os.makedirs(os.path.dirname(LOGO_HASH_FILE), exist_ok=True)
-        with open(LOGO_HASH_FILE, "w") as f:
-            f.write(logo_hash)
-        return True
+        # Make sure the file is writable before trying to write to it
+        try:
+            with open(LOGO_HASH_FILE, "w") as f:
+                f.write(logo_hash)
+            # After writing, set read-only permissions
+            os.chmod(LOGO_HASH_FILE, 0o444)
+            return True
+        except PermissionError:
+            # File might already be read-only, which is fine
+            return True
     
     return False
 

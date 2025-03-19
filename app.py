@@ -9,7 +9,7 @@ from datetime import datetime
 import time
 
 # Import logo protection utilities
-from utils.logo_protection import setup_logo_protection, verify_logo_integrity
+from utils.logo_protection import setup_logo_protection, verify_logo_integrity, restore_logo
 
 # Define all utility functions directly in this file for now
 # This avoids circular import issues while we restructure the code
