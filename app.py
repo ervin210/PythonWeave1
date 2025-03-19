@@ -16,6 +16,9 @@ from utils.logo_protection import setup_logo_protection, verify_logo_integrity, 
 # Import user management
 from components.user_management import initialize_user_management, render_user_management, has_permission
 
+# Import social authentication
+from components.social_auth import social_login_page, social_auth_callback_handler
+
 # Define all utility functions directly in this file for now
 # This avoids circular import issues while we restructure the code
 
@@ -376,9 +379,6 @@ def export_to_csv(data, filename):
 
 # Import the quantum_assistant function
 from components.quantum_assistant import quantum_assistant
-
-# Import social authentication
-from components.social_auth import social_login_page, social_auth_callback_handler
 
 # Page title and configuration
 st.set_page_config(
@@ -1350,6 +1350,9 @@ def main():
     # Render sidebar for navigation
     render_sidebar()
     
+    # Handle OAuth callback if present
+    social_auth_callback_handler()
+        
     # Display the appropriate page based on navigation state
     if not st.session_state.authenticated:
         # Check if user is authenticated at the user management level
@@ -1361,9 +1364,18 @@ def main():
             # Show subscription preview for non-authenticated users
             from components.subscription_manager import subscription_manager
             subscription_manager()
+        elif st.session_state.current_page == "social_login":
+            # Show social login page
+            social_login_page()
         else:
             # Show user login form if user isn't authenticated at any level
-            render_user_management()
+            auth_tabs = st.tabs(["Email Login", "Social Login"])
+            
+            with auth_tabs[0]:
+                render_user_management()
+            
+            with auth_tabs[1]:
+                social_login_page()
     else:
         # User is fully authenticated - show appropriate pages
         if st.session_state.current_page == "user_management":
