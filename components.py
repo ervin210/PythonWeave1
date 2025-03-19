@@ -2,6 +2,10 @@ import streamlit as st
 import pandas as pd
 import base64
 import io
+import sys
+
+# Ensure utils.py is in the import path
+sys.path.append(".")
 from utils import (
     authenticate_wandb,
     logout_wandb,
