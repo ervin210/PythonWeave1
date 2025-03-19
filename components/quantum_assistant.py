@@ -23,10 +23,16 @@ def quantum_assistant():
     
     with col1:
         try:
+            # Try to load the logo from assets directory
             logo = Image.open("assets/quantum_logo.jpg")
             st.image(logo, width=150)
         except FileNotFoundError:
-            st.info("Logo not found. Please add a logo file at assets/quantum_logo.jpg")
+            # Fall back to the attached blob image if the logo is not found
+            try:
+                logo = Image.open("attached_assets/blob.jpg")
+                st.image(logo, width=150)
+            except FileNotFoundError:
+                st.info("Logo not found. Please add a logo file at assets/quantum_logo.jpg")
     
     with col2:
         st.title("Quantum AI Assistant")
