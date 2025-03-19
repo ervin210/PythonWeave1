@@ -23,36 +23,17 @@ def wandb_sync():
     """
     st.title("W&B Sync")
     
-    if "wandb_authenticated" not in st.session_state or not st.session_state.wandb_authenticated:
+    if not st.session_state.authenticated:
         st.warning("Please authenticate with Weights & Biases first!")
-        st.button("Go to Authentication", on_click=lambda: setattr(st.session_state, "page", "auth"))
+        if st.button("Go to Authentication"):
+            st.session_state.current_page = "auth"
+            st.rerun()
         return
-    
-    # Tabs for different operations
-    tab1, tab2, tab3 = st.tabs(["Push to W&B", "Pull from W&B", "Project Operations"])
-    
-    with tab1:
-        push_to_wandb_component()
-    
-    with tab2:
-        pull_from_wandb_component()
-        
-    with tab3:
-        from components.project_operations import project_operations_component
-        project_operations_component()
     
     st.markdown("""
     This component allows you to synchronize your quantum computing experiments with
     Weights & Biases, enabling seamless tracking, collaboration, and sharing.
     """)
-    
-    # Check authentication status
-    if not st.session_state.authenticated:
-        st.warning("You need to authenticate with Weights & Biases first.")
-        if st.button("Go to Authentication"):
-            st.session_state.current_page = "projects"
-            st.rerun()
-        return
     
     # Create tabs
     push_tab, pull_tab, settings_tab = st.tabs([
