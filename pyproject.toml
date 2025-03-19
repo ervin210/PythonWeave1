@@ -13,4 +13,5 @@ dependencies = [
     "streamlit>=1.43.2",
     "wandb>=0.19.8",
     "xlsxwriter>=3.2.2",
+    "scikit-learn>=1.6.1",
 ]

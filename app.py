@@ -351,6 +351,10 @@ def render_sidebar():
         if st.sidebar.button("🧠 Quantum AI Assistant", use_container_width=True):
             st.session_state.current_page = "quantum_assistant"
             
+        # W&B Sync button
+        if st.sidebar.button("↕️ W&B Sync", use_container_width=True):
+            st.session_state.current_page = "wandb_sync"
+            
         # Integration Hub button
         if st.sidebar.button("🔌 Integration Hub", use_container_width=True):
             st.session_state.current_page = "integration_hub"
@@ -1201,6 +1205,9 @@ def main():
     else:
         if st.session_state.current_page == "quantum_assistant":
             quantum_assistant()
+        elif st.session_state.current_page == "wandb_sync":
+            from components.wandb_sync import wandb_sync
+            wandb_sync()
         elif st.session_state.current_page == "integration_hub":
             from components.integration_hub import integration_hub
             integration_hub()
