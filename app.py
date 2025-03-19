@@ -495,6 +495,10 @@ def render_sidebar():
         if st.sidebar.button("💰 Subscription", use_container_width=True):
             st.session_state.current_page = "subscription"
         
+        # Download application button
+        if st.sidebar.button("📥 Download Application", use_container_width=True):
+            st.session_state.current_page = "download_app"
+        
         st.sidebar.divider()
         
         if st.sidebar.button("🚪 Logout", use_container_width=True):
