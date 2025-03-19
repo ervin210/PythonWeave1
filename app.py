@@ -516,6 +516,21 @@ def render_download_page():
     Please include your system specifications and the error message you received when contacting support.
     """)
     
+    # Add a special error callout for the path not found issue
+    st.error("""
+    ### Windows Path Not Found Error
+    
+    Are you seeing "Windows can't find the path" or "Installation path not found" errors?
+    
+    **Quick Fix Steps:**
+    1. Disable your antivirus temporarily during installation
+    2. Download the installer again, saving it to your Desktop
+    3. Right-click the installer and select "Run as administrator"
+    4. If the problem persists, email support@quantum-ai-assistant.com for direct assistance
+    
+    Our support team can provide you with an alternative installation method if needed.
+    """)
+    
     # Status section to show version verification
     st.info("All downloads are verified with the publisher to ensure you get the latest, secure version.", icon="ℹ️")
     
@@ -680,6 +695,22 @@ def render_download_page():
         - 4GB RAM minimum (8GB recommended)
         - 2GB disk space
         - Internet connection for W&B synchronization
+        
+        **Common Installation Errors:**
+        
+        🔴 **"Path Not Found" or "Can't Find Installation Path"**
+        - Ensure you have full permissions for the download folder
+        - Try moving the installer to your desktop before running
+        - Make sure no antivirus is blocking the installer
+        - Contact support at support@quantum-ai-assistant.com with error details
+        
+        🔴 **"This app can't install"**
+        - Run Command Prompt as administrator and type: `sfc /scannow`
+        - Update Windows to the latest version
+        - Try an alternative download location (see below)
+        
+        **Alternative Download:**
+        If you can't download or install from this website, please email support@quantum-ai-assistant.com to receive a direct download link.
         """)
     
     with install_tab2:
