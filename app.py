@@ -10,6 +10,7 @@ from components import (
     render_sweeps_page,
     render_sweep_details_page
 )
+from components.quantum_assistant import quantum_assistant
 from utils import initialize_session_state
 
 # Page title and configuration
@@ -26,7 +27,7 @@ initialize_session_state()
 # Main application
 def main():
     # App header
-    st.title("Weights & Biases Experiment Dashboard")
+    st.title("Quantum AI Experiment Dashboard")
     
     # Render sidebar for navigation
     render_sidebar()
@@ -35,7 +36,9 @@ def main():
     if not st.session_state.authenticated:
         render_auth_page()
     else:
-        if st.session_state.current_page == "projects":
+        if st.session_state.current_page == "quantum_assistant":
+            quantum_assistant()
+        elif st.session_state.current_page == "projects":
             render_projects_page()
         elif st.session_state.current_page == "runs":
             render_runs_page()
