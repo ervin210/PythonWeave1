@@ -1477,8 +1477,189 @@ def main():
             render_sweeps_page()
         elif st.session_state.current_page == "sweep_details":
             render_sweep_details_page()
+        elif st.session_state.current_page == "download_app":
+            render_download_page()
 
 # Add a function to render the footer with copyright
+# Render download page
+def render_download_page():
+    """Render the application download page for local installation."""
+    st.header("Download Quantum AI Assistant")
+    st.markdown("""
+    ## Install the Quantum AI Assistant on your local device
+    
+    Get full access to all features with our desktop application, available for multiple platforms.
+    
+    ### Benefits of the Desktop Version:
+    - ✅ **Offline Access**: Work without an internet connection
+    - ✅ **Enhanced Performance**: Run quantum circuits locally
+    - ✅ **Secure Environment**: Keep your data on your own device
+    - ✅ **Full Feature Set**: Access all enterprise features
+    """)
+    
+    # Show platform selection
+    st.subheader("Select Your Platform")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("### Windows")
+        st.image("assets/windows_logo.png", width=100) if os.path.exists("assets/windows_logo.png") else st.markdown("🪟")
+        st.markdown("64-bit Windows 10/11")
+        
+        win_download_btn = st.button("Download for Windows", key="win_dl", use_container_width=True)
+        if win_download_btn:
+            # Generate dummy file for illustration
+            with open("quantum_ai_assistant_win64.txt", "w") as f:
+                f.write("This is a placeholder for the Windows installer package.\n")
+                f.write("In the real application, this would be an actual installer.\n")
+            
+            with open("quantum_ai_assistant_win64.txt", "rb") as f:
+                st.download_button(
+                    label="Download Windows Installer",
+                    data=f,
+                    file_name="quantum_ai_assistant_win64.exe",
+                    mime="application/octet-stream",
+                    key="win_dl_actual"
+                )
+    
+    with col2:
+        st.markdown("### macOS")
+        st.image("assets/macos_logo.png", width=100) if os.path.exists("assets/macos_logo.png") else st.markdown("🍎")
+        st.markdown("macOS 11 or newer")
+        
+        mac_download_btn = st.button("Download for macOS", key="mac_dl", use_container_width=True)
+        if mac_download_btn:
+            # Generate dummy file for illustration
+            with open("quantum_ai_assistant_macos.txt", "w") as f:
+                f.write("This is a placeholder for the macOS installer package.\n")
+                f.write("In the real application, this would be an actual installer.\n")
+            
+            with open("quantum_ai_assistant_macos.txt", "rb") as f:
+                st.download_button(
+                    label="Download macOS App",
+                    data=f,
+                    file_name="quantum_ai_assistant.dmg",
+                    mime="application/octet-stream",
+                    key="mac_dl_actual"
+                )
+    
+    with col3:
+        st.markdown("### Linux")
+        st.image("assets/linux_logo.png", width=100) if os.path.exists("assets/linux_logo.png") else st.markdown("🐧")
+        st.markdown("Ubuntu, Fedora, Debian")
+        
+        linux_download_btn = st.button("Download for Linux", key="linux_dl", use_container_width=True)
+        if linux_download_btn:
+            # Generate dummy file for illustration
+            with open("quantum_ai_assistant_linux.txt", "w") as f:
+                f.write("This is a placeholder for the Linux installer package.\n")
+                f.write("In the real application, this would be an actual installer.\n")
+            
+            with open("quantum_ai_assistant_linux.txt", "rb") as f:
+                st.download_button(
+                    label="Download Linux Package",
+                    data=f,
+                    file_name="quantum_ai_assistant.deb",
+                    mime="application/octet-stream",
+                    key="linux_dl_actual"
+                )
+    
+    # Installation instructions
+    st.subheader("Installation Instructions")
+    
+    install_tab1, install_tab2, install_tab3 = st.tabs(["Windows", "macOS", "Linux"])
+    
+    with install_tab1:
+        st.markdown("""
+        ### Windows Installation
+        
+        1. Download the installer package above
+        2. Right-click the downloaded file and select "Run as administrator"
+        3. Follow the installation wizard instructions
+        4. Launch the application from your Start menu
+        
+        **System Requirements:**
+        - Windows 10/11 (64-bit)
+        - 4GB RAM minimum (8GB recommended)
+        - 2GB disk space
+        - Internet connection for W&B synchronization
+        """)
+    
+    with install_tab2:
+        st.markdown("""
+        ### macOS Installation
+        
+        1. Download the DMG file above
+        2. Open the DMG file
+        3. Drag the Quantum AI Assistant icon to your Applications folder
+        4. Launch from Applications or Launchpad
+        
+        **System Requirements:**
+        - macOS 11 (Big Sur) or newer
+        - Apple Silicon or Intel processor
+        - 4GB RAM minimum (8GB recommended)
+        - 2GB disk space
+        - Internet connection for W&B synchronization
+        """)
+    
+    with install_tab3:
+        st.markdown("""
+        ### Linux Installation
+        
+        **Debian/Ubuntu:**
+        ```bash
+        sudo dpkg -i quantum_ai_assistant.deb
+        sudo apt-get install -f  # Install dependencies
+        ```
+        
+        **Fedora/RHEL:**
+        ```bash
+        sudo rpm -i quantum_ai_assistant.rpm
+        ```
+        
+        **From Source:**
+        ```bash
+        git clone https://github.com/username/quantum-ai-assistant.git
+        cd quantum-ai-assistant
+        pip install -e .
+        ```
+        
+        **System Requirements:**
+        - Modern Linux distribution (Ubuntu 20.04+, Fedora 34+, etc.)
+        - 4GB RAM minimum (8GB recommended)
+        - 2GB disk space
+        - Python 3.8 or newer
+        - Internet connection for W&B synchronization
+        """)
+    
+    # Mobile app section
+    st.subheader("Mobile Applications")
+    mobile_col1, mobile_col2 = st.columns(2)
+    
+    with mobile_col1:
+        st.markdown("### iOS")
+        st.image("assets/ios_logo.png", width=80) if os.path.exists("assets/ios_logo.png") else st.markdown("📱")
+        st.markdown("Available on App Store")
+        st.markdown("[Download on App Store](#)")
+    
+    with mobile_col2:
+        st.markdown("### Android")
+        st.image("assets/android_logo.png", width=80) if os.path.exists("assets/android_logo.png") else st.markdown("🤖")
+        st.markdown("Available on Google Play")
+        st.markdown("[Download on Google Play](#)")
+    
+    # Enterprise options
+    st.subheader("Enterprise Deployment Options")
+    st.markdown("""
+    For enterprise customers, we offer additional deployment options:
+    
+    - **Network Deployment**: Deploy to multiple workstations via network package
+    - **Custom Integration**: Integrate with your existing enterprise systems
+    - **Private Cloud**: Deploy on your own cloud infrastructure
+    
+    [Contact Sales](mailto:sales@quantum-ai-assistant.com) for enterprise deployment options.
+    """)
+
 def render_footer():
     """Render the application footer with copyright information."""
     try:
