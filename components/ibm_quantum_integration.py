@@ -476,7 +476,7 @@ def update_job_statuses():
                             if "ibm_quantum_results" not in st.session_state:
                                 st.session_state.ibm_quantum_results = {}
                             
-                            # Get the result
+                            # Get the result using the Sampler primitive
                             result = job.result()
                             
                             # Create a circuit for display
@@ -492,8 +492,28 @@ def update_job_statuses():
                                 circuit.h(0)
                                 circuit.measure_all()
                             
+                            # Convert primitive result to traditional counts format
+                            quasi_dist = result.quasi_dists[0]
+                            shots = job_info.get("shots", 1024)
+                            counts = {}
+                            for bitstring, probability in quasi_dist.items():
+                                # Convert integer to binary string
+                                n_bits = circuit.num_clbits
+                                binary = format(bitstring, f'0{n_bits}b')
+                                counts[binary] = int(probability * shots)
+                            
+                            # Create result object compatible with save_job_results
+                            class CustomResult:
+                                def __init__(self, counts):
+                                    self._counts = counts
+                                
+                                def get_counts(self, _=None):
+                                    return self._counts
+                            
+                            custom_result = CustomResult(counts)
+                            
                             # Save results
-                            save_job_results(job_id, job_info["backend"], circuit, result)
+                            save_job_results(job_id, job_info["backend"], circuit, custom_result)
                         except Exception as e:
                             st.warning(f"Could not retrieve results for job {job_id}: {str(e)}")
                 except Exception as e:

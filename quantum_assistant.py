@@ -661,10 +661,29 @@ def run_quantum_circuit(circuit):
             st.error(f"Error connecting to IBM Quantum: {str(e)}")
             st.warning("Falling back to local simulator")
             from qiskit_aer import AerSimulator
+            from qiskit.primitives import Sampler
+            
+            # Create a local Sampler that uses AerSimulator
             backend = AerSimulator()
-            job = backend.run(circuit, shots=1024)
+            sampler = Sampler(backend=backend)
+            
+            # Run the sampler
+            job = sampler.run(circuits=[circuit], shots=1024)
             result = job.result()
-            return result
+            
+            # Return a custom result object that provides the expected interface
+            class CustomResult:
+                def get_counts(self, _=None):
+                    quasi_dist = result.quasi_dists[0]
+                    counts = {}
+                    for bitstring, probability in quasi_dist.items():
+                        # Convert integer to binary string
+                        n_bits = circuit.num_clbits
+                        binary = format(bitstring, f'0{n_bits}b')
+                        counts[binary] = int(probability * 1024)  # Scale by shots
+                    return counts
+                    
+            return CustomResult()
 
 
 def plot_quantum_results(counts):
