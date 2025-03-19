@@ -207,7 +207,7 @@ def render_hotspot_management():
                     if success:
                         st.success(f"Hotspot {ssid} created successfully")
                         st.info(f"Other devices can now connect to '{ssid}' with password '{password}'")
-                        st.experimental_rerun()
+                        st.rerun()
                     else:
                         system = platform.system().lower()
                         if system == "darwin":  # macOS
