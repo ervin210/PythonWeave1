@@ -400,6 +400,9 @@ def render_sidebar():
                     
                     if st.sidebar.button("👥 User Management", use_container_width=True):
                         st.session_state.current_page = "user_management"
+                    
+                    if st.sidebar.button("🔒 Quantum Security", use_container_width=True):
+                        st.session_state.current_page = "quantum_security"
     
     if st.session_state.authenticated:
         # Check and display subscription status
@@ -1333,14 +1336,28 @@ def main():
     
     # Display the appropriate page based on navigation state
     if not st.session_state.authenticated:
-        if st.session_state.get("show_subscription_preview", False):
+        # Check if user is authenticated at the user management level
+        if st.session_state.get("user_authenticated", False):
+            # User is authenticated at account level, but not at W&B level
+            # Show W&B authentication option
+            render_auth_page()
+        elif st.session_state.get("show_subscription_preview", False):
             # Show subscription preview for non-authenticated users
             from components.subscription_manager import subscription_manager
             subscription_manager()
         else:
-            render_auth_page()
+            # Show user login form if user isn't authenticated at any level
+            render_user_management()
     else:
-        if st.session_state.current_page == "quantum_assistant":
+        # User is fully authenticated - show appropriate pages
+        if st.session_state.current_page == "user_management":
+            # This is accessible only for admin users
+            render_user_management()
+        elif st.session_state.current_page == "quantum_security":
+            # Enterprise-level quantum security features
+            from components.quantum_security import quantum_security
+            quantum_security()
+        elif st.session_state.current_page == "quantum_assistant":
             quantum_assistant()
         elif st.session_state.current_page == "wandb_sync":
             from components.wandb_sync import wandb_sync
