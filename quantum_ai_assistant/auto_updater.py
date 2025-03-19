@@ -115,17 +115,31 @@ class AutoUpdater:
             try:
                 request = Request(UPDATE_CHECK_URL, headers=headers)
                 with urlopen(request, timeout=5) as response:
-                    data = json.loads(response.read().decode('utf-8'))
+                    response_text = response.read().decode('utf-8')
+                    if not response_text.strip():
+                        print("Warning: Empty response from primary update server")
+                        raise ValueError("Empty response received")
+                    data = json.loads(response_text)
             except Exception as e:
                 print(f"Primary update check failed: {e}")
                 # Try fallback endpoint
                 try:
                     request = Request(BACKUP_UPDATE_CHECK_URL, headers=headers)
                     with urlopen(request, timeout=5) as response:
-                        data = json.loads(response.read().decode('utf-8'))
+                        response_text = response.read().decode('utf-8')
+                        if not response_text.strip():
+                            print("Warning: Empty response from backup update server")
+                            raise ValueError("Empty response received")
+                        data = json.loads(response_text)
                 except Exception as fallback_error:
                     print(f"Fallback update check also failed: {fallback_error}")
-                    raise  # Re-raise to be caught by the outer exception handler
+                    # For a better user experience, don't raise an exception - just report no updates
+                    self.update_available = False
+                    self.latest_version = CURRENT_VERSION
+                    self.update_url = ""
+                    self.update_notes = "Could not check for updates. Will try again later."
+                    self.check_in_progress = False
+                    return (False, CURRENT_VERSION, "", "Update check failed. Will try again later.")
             
             if not data:
                 raise ValueError("Failed to retrieve update data from any endpoint")

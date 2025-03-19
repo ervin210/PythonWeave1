@@ -16,8 +16,29 @@ import platform
 
 def is_admin():
     """Check if the current process has administrator privileges"""
+    if not is_windows():
+        return False  # Not on Windows
+        
     try:
-        return ctypes.windll.shell32.IsUserAnAdmin() != 0
+        # Try to use ctypes.windll
+        try:
+            return ctypes.windll.shell32.IsUserAnAdmin() != 0
+        except (AttributeError, OSError):
+            # If windll is not available, try alternative methods
+            try:
+                # On Python 3.7+, try to use IsUserAnAdmin directly
+                return ctypes.WinDLL('shell32').IsUserAnAdmin() != 0
+            except:
+                # Last resort - try running a simple admin-only command
+                import subprocess
+                try:
+                    # This command requires admin rights - if it works, we're admin
+                    subprocess.check_output(['net', 'session'], 
+                                           stderr=subprocess.STDOUT,
+                                           stdin=subprocess.DEVNULL)
+                    return True
+                except:
+                    return False
     except:
         return False
 
@@ -29,20 +50,44 @@ def elevate_privileges(script_path, *args):
         script_path: Path to the script to run with elevated privileges
         *args: Additional arguments to pass to the script
     """
+    if not is_windows():
+        return False  # Not on Windows
+        
     if not is_admin():
         # Prepare the arguments
         arguments = ' '.join(args)
         
-        # The command to execute with elevated privileges
-        ctypes.windll.shell32.ShellExecuteW(
-            None,           # Parent window handle
-            "runas",        # Operation - "runas" means run as administrator
-            sys.executable, # Application to execute
-            f'"{script_path}" {arguments}',  # Parameters
-            None,           # Directory
-            1               # Show window normally
-        )
-        return True
+        # Try multiple methods to elevate privileges
+        try:
+            # Method 1: Try to use windll.shell32
+            try:
+                ctypes.windll.shell32.ShellExecuteW(
+                    None,           # Parent window handle
+                    "runas",        # Operation - "runas" means run as administrator
+                    sys.executable, # Application to execute
+                    f'"{script_path}" {arguments}',  # Parameters
+                    None,           # Directory
+                    1               # Show window normally
+                )
+                return True
+            except (AttributeError, OSError):
+                # Method 2: Try to use WinDLL directly
+                try:
+                    shell32 = ctypes.WinDLL('shell32')
+                    shell32.ShellExecuteW(
+                        None, "runas", sys.executable, f'"{script_path}" {arguments}', None, 1
+                    )
+                    return True
+                except:
+                    # Method 3: Last resort - use subprocess with runas
+                    try:
+                        cmd = f'powershell -Command "Start-Process -FilePath \'{sys.executable}\' -ArgumentList \'{script_path} {arguments}\' -Verb RunAs"'
+                        subprocess.Popen(cmd, shell=True)
+                        return True
+                    except:
+                        return False
+        except:
+            return False
     return False
 
 def download_update(url, callback=None):
@@ -226,10 +271,30 @@ def setup_update_task(installer_path, silent=True, delay=10):
             # Cleanup
             f.write("del \"%~f0\"\n")
         
-        # Execute the batch file
-        subprocess.Popen(["cmd", "/c", batch_path], 
-                        creationflags=subprocess.CREATE_NO_WINDOW,
-                        close_fds=True)
+        # Execute the batch file - try different methods for compatibility
+        try:
+            # Try with CREATE_NO_WINDOW flag if available
+            try:
+                # First check if CREATE_NO_WINDOW is available
+                if hasattr(subprocess, 'CREATE_NO_WINDOW'):
+                    subprocess.Popen(["cmd", "/c", batch_path], 
+                                  creationflags=subprocess.CREATE_NO_WINDOW,
+                                  close_fds=True)
+                else:
+                    # Fall back to a different method
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    startupinfo.wShowWindow = 0  # SW_HIDE
+                    subprocess.Popen(["cmd", "/c", batch_path], 
+                                  startupinfo=startupinfo,
+                                  close_fds=True)
+            except (AttributeError, TypeError):
+                # Use basic method as last resort
+                subprocess.Popen(["cmd", "/c", batch_path], shell=True)
+        except Exception as e:
+            print(f"Error executing batch file: {e}")
+            # Last resort - just try with shell=True
+            subprocess.Popen(f"cmd /c {batch_path}", shell=True)
         
         return True
     except Exception as e:
