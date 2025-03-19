@@ -540,26 +540,643 @@ def render_runs_page():
 # Run details page
 def render_run_details_page():
     """Render detailed information for a selected run."""
-    st.header("Run Details")
+    if not st.session_state.selected_project or not st.session_state.selected_run:
+        st.warning("No run selected. Please select a project and run first.")
+        if st.button("Back to Projects"):
+            st.session_state.current_page = "projects"
+            st.rerun()
+        return
     
-    # Just placeholder for now
-    st.info("Run details would be displayed here.")
+    project_id = st.session_state.selected_project["id"]
+    run_id = st.session_state.selected_run["id"]
+    run_name = st.session_state.selected_run["name"]
+    
+    st.header(f"Run Details: {run_name}")
+    
+    # Check if we have run data
+    if not st.session_state.run_data:
+        with st.spinner("Loading run details..."):
+            st.session_state.run_data = get_run_details(project_id, run_id)
+            
+    run_data = st.session_state.run_data
+    if not run_data:
+        st.error("Failed to load run details. Please try again.")
+        if st.button("Back to Runs"):
+            st.session_state.current_page = "runs"
+            st.rerun()
+        return
+    
+    # Create tabs for different aspects of the run
+    overview_tab, config_tab, metrics_tab, files_tab = st.tabs([
+        "Overview", "Configuration", "Metrics & Visualizations", "Files & Artifacts"
+    ])
+    
+    with overview_tab:
+        st.subheader("Run Information")
+        
+        # Display basic run info in columns
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"**Run ID:** {run_data['id']}")
+            st.markdown(f"**Name:** {run_data['name']}")
+            st.markdown(f"**State:** {run_data['state']}")
+            st.markdown(f"**Project:** {run_data['project']}")
+        with col2:
+            created_at = pd.to_datetime(run_data['created_at']).strftime('%Y-%m-%d %H:%M:%S') if 'created_at' in run_data else "Unknown"
+            st.markdown(f"**Created:** {created_at}")
+            st.markdown(f"**Entity:** {run_data['entity']}")
+            wandb_url = run_data.get('url', '#')
+            st.markdown(f"**W&B URL:** [Open in W&B]({wandb_url})")
+        
+        # Summary metrics section
+        st.subheader("Summary Metrics")
+        if run_data['summary']:
+            metrics = {}
+            for key, value in run_data['summary'].items():
+                if not key.startswith('_') and isinstance(value, (int, float)):
+                    metrics[key] = value
+            
+            if metrics:
+                metrics_df = pd.DataFrame([metrics])
+                st.dataframe(metrics_df, use_container_width=True)
+            else:
+                st.info("No numerical metrics found in this run.")
+        else:
+            st.info("No summary metrics available for this run.")
+    
+    with config_tab:
+        st.subheader("Run Configuration")
+        
+        if run_data['config']:
+            # Organize config parameters by category if possible
+            categorized_config = {}
+            
+            for key, value in run_data['config'].items():
+                # Skip internal keys
+                if key.startswith('_'):
+                    continue
+                
+                # Try to categorize by prefix (e.g., "optimizer.learning_rate" goes into "optimizer" category)
+                if '.' in key:
+                    category, param = key.split('.', 1)
+                    if category not in categorized_config:
+                        categorized_config[category] = {}
+                    categorized_config[category][param] = value
+                else:
+                    # No category, put in "general"
+                    if "general" not in categorized_config:
+                        categorized_config["general"] = {}
+                    categorized_config["general"][key] = value
+            
+            # Display each category in an expander
+            for category, params in categorized_config.items():
+                with st.expander(f"{category.capitalize()} Parameters", expanded=True):
+                    # Convert the parameters to a DataFrame for nice display
+                    params_df = pd.DataFrame({"Parameter": list(params.keys()), "Value": list(params.values())})
+                    st.dataframe(params_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("No configuration parameters available for this run.")
+    
+    with metrics_tab:
+        st.subheader("Metrics Over Time")
+        
+        # Check if we have history data
+        if 'history' in run_data and not run_data['history'].empty:
+            history_df = run_data['history']
+            
+            # Get all metric columns (numerical columns that don't start with _)
+            metric_columns = [col for col in history_df.columns if not col.startswith('_') 
+                             and col != '_step' and col != 'step'
+                             and pd.api.types.is_numeric_dtype(history_df[col])]
+            
+            if metric_columns:
+                # Let user select metrics to visualize
+                selected_metrics = st.multiselect(
+                    "Select metrics to visualize:",
+                    options=metric_columns,
+                    default=metric_columns[:min(3, len(metric_columns))]
+                )
+                
+                if selected_metrics:
+                    # Add a slider for smoothing
+                    smoothing = st.slider("Smoothing", min_value=0.0, max_value=0.99, value=0.0, step=0.01)
+                    
+                    # Determine step column
+                    step_col = '_step' if '_step' in history_df.columns else 'step' if 'step' in history_df.columns else None
+                    
+                    if step_col:
+                        # Create a multi-line chart
+                        import plotly.express as px
+                        
+                        # Apply smoothing if needed
+                        plot_df = history_df.copy()
+                        if smoothing > 0:
+                            for metric in selected_metrics:
+                                plot_df[metric] = plot_df[metric].ewm(alpha=(1 - smoothing)).mean()
+                        
+                        # Create a different y-axis for each metric
+                        fig = px.line(
+                            plot_df, 
+                            x=step_col, 
+                            y=selected_metrics,
+                            labels={"value": "Metric Value", step_col: "Step"},
+                            title="Metrics Over Time"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        # Option to download the metrics data
+                        if st.button("Download Metrics Data as CSV"):
+                            csv_data, filename = export_to_csv(
+                                history_df[selected_metrics + [step_col]], 
+                                f"run_{run_id}_metrics"
+                            )
+                            st.download_button(
+                                label="Download CSV",
+                                data=csv_data,
+                                file_name=filename,
+                                mime="text/csv"
+                            )
+                    else:
+                        st.warning("No step column found in history data. Cannot create time series visualization.")
+                else:
+                    st.info("Please select at least one metric to visualize.")
+            else:
+                st.info("No numerical metrics found in the history data.")
+        else:
+            st.info("No metrics history available for this run.")
+    
+    with files_tab:
+        st.subheader("Files & Artifacts")
+        
+        if 'files' in run_data and run_data['files']:
+            # Display file list in a table
+            files_df = pd.DataFrame(run_data['files'])
+            
+            # Convert size to human readable format
+            def format_size(size_bytes):
+                for unit in ['B', 'KB', 'MB', 'GB']:
+                    if size_bytes < 1024 or unit == 'GB':
+                        return f"{size_bytes:.2f} {unit}"
+                    size_bytes /= 1024
+            
+            if 'size' in files_df.columns:
+                files_df['size'] = files_df['size'].apply(format_size)
+            
+            # Convert timestamp if available
+            if 'updated_at' in files_df.columns:
+                files_df['updated_at'] = pd.to_datetime(files_df['updated_at']).dt.strftime('%Y-%m-%d %H:%M:%S')
+                files_df = files_df.rename(columns={'updated_at': 'Last Updated'})
+            
+            # Rename columns for better display
+            files_df = files_df.rename(columns={'name': 'Filename', 'size': 'Size'})
+            
+            st.dataframe(files_df, use_container_width=True, hide_index=True)
+            
+            # Allow user to select and download a file
+            if len(files_df) > 0:
+                st.subheader("Download Artifact")
+                file_names = files_df['Filename'].tolist()
+                selected_file = st.selectbox("Select a file to download:", file_names)
+                
+                if st.button("Download Selected File"):
+                    with st.spinner(f"Downloading {selected_file}..."):
+                        file_data = download_run_artifact(project_id, run_id, selected_file)
+                        
+                        if file_data:
+                            # Determine mime type (simple version)
+                            mime = "application/octet-stream"  # default
+                            if selected_file.endswith('.csv'):
+                                mime = "text/csv"
+                            elif selected_file.endswith('.json'):
+                                mime = "application/json"
+                            elif selected_file.endswith('.txt'):
+                                mime = "text/plain"
+                            
+                            st.download_button(
+                                label=f"Download {selected_file}",
+                                data=file_data,
+                                file_name=selected_file,
+                                mime=mime
+                            )
+                        else:
+                            st.error("Failed to download the file. Please try again.")
 
 # Sweeps page
 def render_sweeps_page():
     """Render the sweeps page for a selected project."""
-    st.header("Your Project Sweeps")
+    if not st.session_state.selected_project:
+        st.warning("No project selected. Please select a project first.")
+        if st.button("Back to Projects"):
+            st.session_state.current_page = "projects"
+            st.rerun()
+        return
     
-    # Just placeholder for now
-    st.info("Sweeps would be displayed here.")
+    project_id = st.session_state.selected_project["id"]
+    st.header(f"Sweeps for {project_id}")
+    
+    # Button to refresh sweeps
+    if st.button("Refresh Sweeps"):
+        st.session_state.sweeps = get_sweeps(project_id)
+    
+    # Get sweeps for the selected project
+    with st.spinner("Loading sweeps..."):
+        sweeps = get_sweeps(project_id)
+    
+    if not sweeps:
+        st.warning("No sweeps found for this project.")
+        return
+    
+    # Prepare data for table display
+    sweeps_data = []
+    for sweep in sweeps:
+        sweep_data = {
+            "ID": sweep["id"],
+            "Name": sweep["name"],
+            "State": sweep["state"],
+            "Created": pd.to_datetime(sweep["created_at"]).strftime('%Y-%m-%d %H:%M:%S') if "created_at" in sweep and sweep["created_at"] else "",
+        }
+        
+        # Add method and metric if available in config
+        if "config" in sweep and sweep["config"]:
+            if "method" in sweep["config"]:
+                sweep_data["Method"] = sweep["config"]["method"]
+            
+            if "metric" in sweep["config"]:
+                if isinstance(sweep["config"]["metric"], dict) and "name" in sweep["config"]["metric"]:
+                    metric_name = sweep["config"]["metric"]["name"]
+                    goal = sweep["config"]["metric"].get("goal", "")
+                    sweep_data["Metric"] = f"{metric_name} ({goal})"
+                elif isinstance(sweep["config"]["metric"], str):
+                    sweep_data["Metric"] = sweep["config"]["metric"]
+        
+        sweeps_data.append(sweep_data)
+    
+    # Display table with sweeps
+    sweeps_df = pd.DataFrame(sweeps_data)
+    st.dataframe(sweeps_df, use_container_width=True, hide_index=True)
+    
+    # Select a sweep for detailed view
+    st.subheader("Select a Sweep for Detailed Analysis")
+    
+    # Get sweep names/IDs for the selectbox
+    sweep_options = [f"{sweep['name']} ({sweep['id']})" for sweep in sweeps]
+    
+    if sweep_options:
+        selected_sweep_option = st.selectbox("Choose a sweep:", sweep_options)
+        selected_sweep_id = selected_sweep_option.split("(")[-1].split(")")[0]
+        
+        if st.button("View Sweep Details"):
+            # Find the selected sweep in the list
+            for sweep in sweeps:
+                if sweep["id"] == selected_sweep_id:
+                    st.session_state.selected_sweep = sweep
+                    st.session_state.current_page = "sweep_details"
+                    
+                    # Get detailed sweep data
+                    with st.spinner("Loading sweep details..."):
+                        st.session_state.sweep_data = get_sweep_details(project_id, sweep["id"])
+                    
+                    st.rerun()
 
 # Sweep details page
 def render_sweep_details_page():
     """Render detailed information for a selected sweep."""
-    st.header("Sweep Details")
+    if not st.session_state.selected_project or not st.session_state.selected_sweep:
+        st.warning("No sweep selected. Please select a project and sweep first.")
+        if st.button("Back to Projects"):
+            st.session_state.current_page = "projects"
+            st.rerun()
+        return
     
-    # Just placeholder for now
-    st.info("Sweep details would be displayed here.")
+    project_id = st.session_state.selected_project["id"]
+    sweep_id = st.session_state.selected_sweep["id"]
+    sweep_name = st.session_state.selected_sweep["name"]
+    
+    st.header(f"Sweep Details: {sweep_name}")
+    
+    # Check if we have sweep data
+    if not st.session_state.sweep_data:
+        with st.spinner("Loading sweep details..."):
+            st.session_state.sweep_data = get_sweep_details(project_id, sweep_id)
+            
+    sweep_data = st.session_state.sweep_data
+    if not sweep_data:
+        st.error("Failed to load sweep details. Please try again.")
+        if st.button("Back to Sweeps"):
+            st.session_state.current_page = "sweeps"
+            st.rerun()
+        return
+    
+    # Create tabs for different aspects of the sweep
+    overview_tab, config_tab, runs_tab, visualization_tab = st.tabs([
+        "Overview", "Configuration", "Runs", "Visualization"
+    ])
+    
+    with overview_tab:
+        st.subheader("Sweep Information")
+        
+        # Display basic sweep info in columns
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"**Sweep ID:** {sweep_data['id']}")
+            st.markdown(f"**Name:** {sweep_data['name']}")
+            st.markdown(f"**State:** {sweep_data['state']}")
+            st.markdown(f"**Project:** {project_id}")
+        with col2:
+            created_at = pd.to_datetime(sweep_data['created_at']).strftime('%Y-%m-%d %H:%M:%S') if 'created_at' in sweep_data and sweep_data['created_at'] else "Unknown"
+            st.markdown(f"**Created:** {created_at}")
+            if 'config' in sweep_data and sweep_data['config']:
+                if 'method' in sweep_data['config']:
+                    st.markdown(f"**Method:** {sweep_data['config']['method']}")
+                
+                if 'metric' in sweep_data['config']:
+                    if isinstance(sweep_data['config']['metric'], dict) and 'name' in sweep_data['config']['metric']:
+                        metric_name = sweep_data['config']['metric']['name']
+                        goal = sweep_data['config']['metric'].get('goal', '')
+                        st.markdown(f"**Optimization Metric:** {metric_name} ({goal})")
+                    elif isinstance(sweep_data['config']['metric'], str):
+                        st.markdown(f"**Optimization Metric:** {sweep_data['config']['metric']}")
+        
+        # Best run section if available
+        if 'best_run' in sweep_data and sweep_data['best_run']:
+            st.subheader("Best Run")
+            best_run = sweep_data['best_run']
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(f"**Run ID:** {best_run['id']}")
+                st.markdown(f"**Name:** {best_run['name']}")
+                st.markdown(f"**State:** {best_run['state']}")
+            with col2:
+                created_at = pd.to_datetime(best_run['created_at']).strftime('%Y-%m-%d %H:%M:%S') if 'created_at' in best_run else "Unknown"
+                st.markdown(f"**Created:** {created_at}")
+            
+            # Show the key metrics for the best run
+            if 'summary' in best_run and best_run['summary']:
+                st.subheader("Best Run Metrics")
+                metrics = {}
+                for key, value in best_run['summary'].items():
+                    if not key.startswith('_') and isinstance(value, (int, float)):
+                        metrics[key] = value
+                
+                if metrics:
+                    metrics_df = pd.DataFrame([metrics])
+                    st.dataframe(metrics_df, use_container_width=True)
+                
+                # Button to view the best run details
+                if st.button("View Best Run Details"):
+                    st.session_state.selected_run = best_run
+                    st.session_state.current_page = "run_details"
+                    with st.spinner("Loading run details..."):
+                        st.session_state.run_data = get_run_details(project_id, best_run['id'])
+                    st.rerun()
+    
+    with config_tab:
+        st.subheader("Sweep Configuration")
+        
+        if 'config' in sweep_data and sweep_data['config']:
+            # Create expandable sections for different parts of the config
+            if 'parameters' in sweep_data['config']:
+                with st.expander("Hyperparameter Search Space", expanded=True):
+                    parameters = sweep_data['config']['parameters']
+                    
+                    for param_name, param_config in parameters.items():
+                        st.markdown(f"**{param_name}**")
+                        
+                        # Display parameter configuration based on its type
+                        if isinstance(param_config, dict):
+                            param_type = next(iter(param_config)) if param_config else None
+                            
+                            if param_type == 'values':
+                                st.markdown(f"Type: Discrete choice from values: {param_config['values']}")
+                            elif param_type == 'min' and 'max' in param_config:
+                                step = param_config.get('step', 'N/A')
+                                st.markdown(f"Type: Range from {param_config['min']} to {param_config['max']} (step: {step})")
+                            elif param_type == 'distribution':
+                                st.markdown(f"Type: Distribution - {param_config['distribution']}")
+                                if 'min' in param_config and 'max' in param_config:
+                                    st.markdown(f"Range: {param_config['min']} to {param_config['max']}")
+                            else:
+                                st.json(param_config)
+                        else:
+                            st.markdown(f"Value: {param_config}")
+                        
+                        st.markdown("---")
+            
+            # Display method, metric, early termination, etc.
+            general_config = {k: v for k, v in sweep_data['config'].items() if k != 'parameters'}
+            if general_config:
+                with st.expander("General Configuration", expanded=True):
+                    st.json(general_config)
+        else:
+            st.info("No configuration available for this sweep.")
+    
+    with runs_tab:
+        st.subheader("Sweep Runs")
+        
+        if 'runs' in sweep_data and sweep_data['runs']:
+            # Prepare data for table display
+            runs_data = []
+            for run in sweep_data['runs']:
+                run_data = {
+                    "ID": run["id"],
+                    "Name": run["name"],
+                    "State": run["state"],
+                    "Created": pd.to_datetime(run["created_at"]).strftime('%Y-%m-%d %H:%M:%S') if "created_at" in run else "",
+                }
+                
+                # Add hyperparameters from config
+                if "config" in run:
+                    for key, value in run["config"].items():
+                        if not key.startswith('_') and key not in run_data:
+                            if isinstance(value, (int, float, str, bool)):
+                                run_data[key] = value
+                
+                # Add metrics from summary
+                if "summary" in run:
+                    for key, value in run["summary"].items():
+                        if not key.startswith('_') and isinstance(value, (int, float)) and key not in run_data:
+                            run_data[key] = value
+                
+                runs_data.append(run_data)
+            
+            # Display table with runs
+            runs_df = pd.DataFrame(runs_data)
+            
+            # Allow filtering on numerical columns
+            if len(runs_df) > 0:
+                st.markdown("### Filter Runs")
+                
+                # Get numerical columns for filtering
+                numerical_cols = [col for col in runs_df.columns if runs_df[col].dtype in ['int64', 'float64']]
+                
+                if numerical_cols:
+                    # Let user select a column to filter on
+                    filter_col = st.selectbox("Select column to filter:", numerical_cols)
+                    
+                    # Get min and max values for the selected column
+                    min_val = float(runs_df[filter_col].min())
+                    max_val = float(runs_df[filter_col].max())
+                    
+                    # Create a slider for filtering
+                    filter_range = st.slider(
+                        f"Filter by {filter_col}",
+                        min_val,
+                        max_val,
+                        (min_val, max_val)
+                    )
+                    
+                    # Filter the dataframe
+                    filtered_df = runs_df[(runs_df[filter_col] >= filter_range[0]) & (runs_df[filter_col] <= filter_range[1])]
+                    
+                    # Display the filtered dataframe
+                    st.dataframe(filtered_df, use_container_width=True, hide_index=True)
+                else:
+                    st.dataframe(runs_df, use_container_width=True, hide_index=True)
+            else:
+                st.dataframe(runs_df, use_container_width=True, hide_index=True)
+            
+            # Allow selecting a run to view details
+            st.markdown("### Select Run to View Details")
+            run_options = [f"{run['name']} ({run['id']})" for run in sweep_data['runs']]
+            
+            if run_options:
+                selected_run_option = st.selectbox("Choose a run:", run_options)
+                selected_run_id = selected_run_option.split("(")[-1].split(")")[0]
+                
+                if st.button("View Run Details"):
+                    # Find the selected run in the list
+                    for run in sweep_data['runs']:
+                        if run["id"] == selected_run_id:
+                            st.session_state.selected_run = run
+                            st.session_state.current_page = "run_details"
+                            
+                            # Get detailed run data
+                            with st.spinner("Loading run details..."):
+                                st.session_state.run_data = get_run_details(project_id, run["id"])
+                            
+                            st.rerun()
+        else:
+            st.info("No runs available for this sweep.")
+    
+    with visualization_tab:
+        st.subheader("Parameter Importance & Performance Visualization")
+        
+        if 'runs' in sweep_data and sweep_data['runs'] and len(sweep_data['runs']) > 1:
+            # Get optimization metric name if available
+            optimization_metric = None
+            if 'config' in sweep_data and sweep_data['config'] and 'metric' in sweep_data['config']:
+                if isinstance(sweep_data['config']['metric'], dict) and 'name' in sweep_data['config']['metric']:
+                    optimization_metric = sweep_data['config']['metric']['name']
+                elif isinstance(sweep_data['config']['metric'], str):
+                    optimization_metric = sweep_data['config']['metric']
+            
+            # Try to find a common metric across runs if none is specified
+            if not optimization_metric:
+                # Look for common metrics in the first run's summary
+                if sweep_data['runs'] and 'summary' in sweep_data['runs'][0]:
+                    possible_metrics = [key for key, value in sweep_data['runs'][0]['summary'].items() 
+                                      if not key.startswith('_') and isinstance(value, (int, float))]
+                    
+                    # Check if any of these metrics exist in all runs
+                    for metric in possible_metrics:
+                        if all(metric in run.get('summary', {}) for run in sweep_data['runs']):
+                            optimization_metric = metric
+                            break
+            
+            if optimization_metric:
+                # Collect hyperparameters and metrics from all runs
+                run_results = []
+                for run in sweep_data['runs']:
+                    if 'summary' in run and optimization_metric in run['summary']:
+                        result = {'run_id': run['id'], 'run_name': run['name']}
+                        
+                        # Add hyperparameters from config
+                        if 'config' in run:
+                            for key, value in run['config'].items():
+                                if not key.startswith('_') and isinstance(value, (int, float, str, bool)):
+                                    result[key] = value
+                        
+                        # Add the optimization metric
+                        result[optimization_metric] = run['summary'][optimization_metric]
+                        
+                        run_results.append(result)
+                
+                if run_results:
+                    # Convert to DataFrame for visualization
+                    results_df = pd.DataFrame(run_results)
+                    
+                    # Get hyperparameter columns (exclude run_id, run_name, and metrics)
+                    hyperparam_cols = [col for col in results_df.columns 
+                                     if col not in ['run_id', 'run_name', optimization_metric]]
+                    
+                    if hyperparam_cols:
+                        # Let user select hyperparameters to visualize
+                        selected_hyperparams = st.multiselect(
+                            "Select hyperparameters to visualize:",
+                            options=hyperparam_cols,
+                            default=hyperparam_cols[:min(2, len(hyperparam_cols))]
+                        )
+                        
+                        if selected_hyperparams:
+                            import plotly.express as px
+                            
+                            # Scatter plot for selected hyperparameters vs. optimization metric
+                            if len(selected_hyperparams) == 1:
+                                # 2D scatter plot
+                                x_param = selected_hyperparams[0]
+                                
+                                fig = px.scatter(
+                                    results_df,
+                                    x=x_param,
+                                    y=optimization_metric,
+                                    hover_data=['run_name'],
+                                    title=f"Impact of {x_param} on {optimization_metric}",
+                                    labels={x_param: x_param, optimization_metric: optimization_metric}
+                                )
+                                st.plotly_chart(fig, use_container_width=True)
+                                
+                            elif len(selected_hyperparams) == 2:
+                                # 3D scatter plot with two hyperparameters
+                                x_param = selected_hyperparams[0]
+                                y_param = selected_hyperparams[1]
+                                
+                                fig = px.scatter(
+                                    results_df,
+                                    x=x_param,
+                                    y=y_param,
+                                    color=optimization_metric,
+                                    hover_data=['run_name'],
+                                    title=f"Impact of {x_param} and {y_param} on {optimization_metric}",
+                                    labels={
+                                        x_param: x_param, 
+                                        y_param: y_param, 
+                                        optimization_metric: optimization_metric
+                                    }
+                                )
+                                st.plotly_chart(fig, use_container_width=True)
+                                
+                            elif len(selected_hyperparams) > 2:
+                                # Parallel coordinates plot for multiple hyperparameters
+                                dimensions = selected_hyperparams + [optimization_metric]
+                                
+                                fig = px.parallel_coordinates(
+                                    results_df,
+                                    dimensions=dimensions,
+                                    color=optimization_metric,
+                                    title=f"Parallel Coordinates Plot of Hyperparameters and {optimization_metric}"
+                                )
+                                st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            st.info("Please select at least one hyperparameter to visualize.")
+                    else:
+                        st.info("No hyperparameters found in the run configurations.")
+                else:
+                    st.info(f"No runs with the metric '{optimization_metric}' found.")
+            else:
+                st.info("No common optimization metric found across runs.")
+        else:
+            st.info("Not enough runs to visualize. A sweep needs at least 2 runs for meaningful visualization.")
 
 # Main application
 def main():
