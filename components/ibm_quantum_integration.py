@@ -81,10 +81,60 @@ def ibm_quantum_integration():
                     st.rerun()
 
 def check_ibm_token():
-    """Check if IBM Quantum token exists"""
+    """Check if IBM Quantum token exists and display datacenter/instance information"""
     # Check session state first
     if "ibm_quantum_token" in st.session_state and st.session_state.ibm_quantum_token:
-        return True
+        try:
+            # If we're checking the token, try to get available instances/datacenters
+            # Only do this if we don't already have the information to avoid repeated API calls
+            if "ibm_quantum_instances" not in st.session_state:
+                # Initialize the service
+                service = QiskitRuntimeService(channel="ibm_quantum", token=st.session_state.ibm_quantum_token)
+                
+                # Get instances/regions
+                instances = service.instances()
+                
+                # Store in session state
+                st.session_state.ibm_quantum_instances = instances
+                
+                # Get total backends count
+                backends = get_ibm_backends()
+                if backends:
+                    instance_counts = {}
+                    simulator_count = 0
+                    qpu_count = 0
+                    
+                    # Count backends by type and datacenter
+                    for backend in backends:
+                        datacenter = getattr(backend, "_instance", "Default")
+                        if datacenter not in instance_counts:
+                            instance_counts[datacenter] = {"simulators": 0, "qpus": 0}
+                        
+                        if backend.configuration().simulator:
+                            instance_counts[datacenter]["simulators"] += 1
+                            simulator_count += 1
+                        else:
+                            instance_counts[datacenter]["qpus"] += 1
+                            qpu_count += 1
+                    
+                    # Display instance information
+                    st.success(f"✓ IBM Quantum access verified: {len(instances)} datacenters available")
+                    st.info(f"Connected to IBM Quantum with access to {qpu_count} QPUs and {simulator_count} simulators")
+                    
+                    # Show datacenter details in an expandable section
+                    with st.expander("View Datacenter Details"):
+                        for datacenter, counts in instance_counts.items():
+                            st.write(f"**Datacenter: {datacenter}**")
+                            st.write(f"- QPUs: {counts['qpus']}")
+                            st.write(f"- Simulators: {counts['simulators']}")
+            
+            return True
+        except Exception as e:
+            st.error(f"Error connecting to IBM Quantum: {str(e)}")
+            # Clear the token if it's invalid
+            if "Invalid token" in str(e):
+                st.session_state.pop("ibm_quantum_token", None)
+            return False
     
     # Check secure storage
     try:
@@ -95,7 +145,7 @@ def check_ibm_token():
                 if "token" in config and config["token"]:
                     # Load token to session state
                     st.session_state.ibm_quantum_token = config["token"]
-                    return True
+                    return check_ibm_token()  # Recursive call with the loaded token
     except Exception:
         pass
     
@@ -269,6 +319,10 @@ def create_and_run_circuit():
                     try:
                         # Get the selected backend from our compatible_backends list to know its instance/datacenter
                         selected_backend_obj = next((b for b in compatible_backends if b.name == selected_backend), None)
+                        
+                        # Make sure we found the backend object
+                        if not selected_backend_obj:
+                            raise ValueError(f"Could not find backend '{selected_backend}' in the list of compatible backends")
                         
                         # Determine if simulator or real hardware
                         is_simulator = selected_backend_obj.configuration().simulator
@@ -553,16 +607,63 @@ def update_job_statuses():
         return
     
     try:
+        # Create a default service
         service = QiskitRuntimeService(channel="ibm_quantum", token=st.session_state.ibm_quantum_token)
+        
+        # Create a dictionary to hold services for each instance/datacenter
+        # This avoids recreating the service for each job in the same datacenter
+        instance_services = {}
         
         with st.spinner("Updating job statuses..."):
             for i, job_info in enumerate(st.session_state.ibm_quantum_jobs):
                 job_id = job_info["job_id"]
                 
                 try:
-                    # Get job status
-                    job = service.job(job_id)
-                    status = job.status().value
+                    # Try to get job from default service first
+                    job = None
+                    status = "UNKNOWN"
+                    try:
+                        job = service.job(job_id)
+                        status = job.status().value
+                    except Exception as e:
+                        # If that fails, the job might be in a different datacenter
+                        # Try each available instance/datacenter
+                        if "ibm_quantum_instances" in st.session_state:
+                            job_found = False
+                            for instance in st.session_state.ibm_quantum_instances:
+                                # Reuse existing service for this instance if we already created one
+                                if instance in instance_services:
+                                    instance_service = instance_services[instance]
+                                else:
+                                    # Create a new service for this instance
+                                    instance_service = QiskitRuntimeService(
+                                        channel="ibm_quantum", 
+                                        token=st.session_state.ibm_quantum_token,
+                                        instance=instance
+                                    )
+                                    # Cache it for future use
+                                    instance_services[instance] = instance_service
+                                
+                                try:
+                                    # Try to get the job from this instance
+                                    job = instance_service.job(job_id)
+                                    status = job.status().value
+                                    job_found = True
+                                    break
+                                except Exception:
+                                    # Job not found in this instance, continue to next one
+                                    continue
+                            
+                            if not job_found:
+                                # If we tried all instances and didn't find the job
+                                raise ValueError(f"Job {job_id} not found in any datacenter")
+                        else:
+                            # No instances available to try
+                            raise e
+                    
+                    # Make sure we have a job object
+                    if not job:
+                        raise ValueError(f"Could not find job {job_id} in any datacenter")
                     
                     # Update status
                     st.session_state.ibm_quantum_jobs[i]["status"] = status
