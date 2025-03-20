@@ -569,8 +569,8 @@ def render_login_form():
     """Render the login form"""
     st.subheader("Login")
     
-    # Create tabs for password login, reset password, demo account, and social login
-    login_tab, reset_tab, demo_tab, social_tab = st.tabs(["Email & Password", "Reset Password", "Demo Account", "Social Login"])
+    # Create tabs for password login, reset password, and social login
+    login_tab, reset_tab, social_tab = st.tabs(["Email & Password", "Reset Password", "Social Login"])
     
     with login_tab:
         with st.form("login_form"):
@@ -606,45 +606,7 @@ def render_login_form():
                 else:
                     st.error("Email address not found in the system.")
     
-    with demo_tab:
-        st.markdown("### Demo Account")
-        st.markdown("Use the demo account to explore the system without registration.")
-        
-        # Check if demo account exists, if not create it
-        demo_email = "demo@quantum-ai-assistant.com"
-        
-        if demo_email not in st.session_state.user_db:
-            # Create demo account with known password
-            demo_password = "Demo123!"  # Keep for display in the UI
-            password_data = generate_password_hash(demo_password)
-            
-            st.session_state.user_db[demo_email] = {
-                'email': demo_email,
-                'name': 'Demo User',
-                'role': 'standard_user',
-                'password': {
-                    'hash': password_data['hash'],
-                    'salt': password_data['salt']
-                },
-                'created_at': datetime.now().isoformat(),
-                'last_login': None,
-                'status': 'active',
-                'must_change_password': False
-            }
-            
-            # Save the user database
-            save_user_database()
-        
-        st.markdown("**Demo account details:**")
-        st.info(f"**Email:** {demo_email}  \n**Password:** Demo123!")
-        
-        if st.button("Login as Demo User", key="demo_login"):
-            success, message = authenticate_user(demo_email, "Demo123!")
-            if success:
-                st.success(message)
-                st.rerun()
-            else:
-                st.error(message)
+
     
     with social_tab:
         # Import the social login component
