@@ -28,7 +28,7 @@ def ibm_quantum_integration():
     has_token = check_ibm_token()
     
     if not has_token:
-        st.warning("No IBM Quantum API token found. Please enter your token to access IBM Quantum backends.")
+        st.warning("No IBM Quantum API token found. For security reasons, anonymous access is not allowed. Please enter your personal IBM Quantum API token to access quantum hardware backends.")
         with st.form("ibm_quantum_token_form"):
             token = st.text_input("IBM Quantum API Token", type="password")
             save_token = st.checkbox("Save token for future sessions", value=True)
@@ -75,9 +75,10 @@ def ibm_quantum_integration():
                 st.info("This might be due to an invalid token or network issues. Please try again.")
                 
                 # Option to reset token
+                st.warning("For security reasons, you must use your own IBM Quantum API token.")
                 if st.button("Reset IBM Quantum Token"):
                     reset_ibm_token()
-                    st.success("Token reset. Please enter a new token.")
+                    st.success("Token reset. Please enter your personal API token to continue.")
                     st.rerun()
 
 def check_ibm_token():

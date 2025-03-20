@@ -606,8 +606,6 @@ def render_login_form():
                 else:
                     st.error("Email address not found in the system.")
     
-
-    
     with social_tab:
         # Import the social login component
         from components.social_auth import social_login_page
