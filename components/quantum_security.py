@@ -66,7 +66,7 @@ def quantum_safe_encryption_analyzer():
         ],
         "Classical Security (bits)": [112, 128, 256, 128, 128, 128, 128],
         "Quantum Security (bits)": [0, 0, 128, 128, 128, 128, 128],
-        "Key Size (bytes)": [256, 32, 32, 1025, 1088, 1MB_placeholder, 150000],
+        "Key Size (bytes)": [256, 32, 32, 1025, 1088, 1048576, 150000],
         "Category": [
             "Classical", 
             "Classical", 
@@ -80,7 +80,8 @@ def quantum_safe_encryption_analyzer():
     
     # Create DataFrame
     encryption_df = pd.DataFrame(encryption_data)
-    encryption_df["Key Size (bytes)"] = [256, 32, 32, 1025, 1088, 1024 * 1024, 150000]  # Fix placeholder
+    # Fix placeholder with actual 1MB value
+    encryption_df["Key Size (bytes)"] = [256, 32, 32, 1025, 1088, 1024 * 1024, 150000]
     
     # Display comparison table
     st.dataframe(encryption_df)

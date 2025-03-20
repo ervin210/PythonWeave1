@@ -129,11 +129,52 @@ def get_ibm_backends():
     if "ibm_quantum_token" not in st.session_state:
         return []
     
-    # Initialize service (using new QiskitRuntimeService instead of deprecated IBMQ)
-    service = QiskitRuntimeService(channel="ibm_quantum", token=st.session_state.ibm_quantum_token)
+    # Get available instances/regions
+    available_instances = []
     
-    # Get available backends
-    return service.backends()
+    try:
+        # Initialize service with default instance first
+        service = QiskitRuntimeService(channel="ibm_quantum", token=st.session_state.ibm_quantum_token)
+        
+        # Get list of available instances/regions
+        instances = service.instances()
+        
+        # Store the instance information in session state if not already present
+        if "ibm_quantum_instances" not in st.session_state:
+            st.session_state.ibm_quantum_instances = instances
+        
+        # If instances found, get backends from all instances
+        all_backends = []
+        
+        # Loop through all instances/regions to get backends from each datacenter
+        for instance in instances:
+            try:
+                instance_service = QiskitRuntimeService(
+                    channel="ibm_quantum", 
+                    token=st.session_state.ibm_quantum_token,
+                    instance=instance
+                )
+                
+                # Get backends for this instance
+                instance_backends = instance_service.backends()
+                
+                # Add instance information to each backend for display
+                for backend in instance_backends:
+                    backend._instance = instance  # Add instance info
+                    all_backends.append(backend)
+                    
+            except Exception as e:
+                # If we can't connect to a specific instance, just continue
+                print(f"Could not connect to instance {instance}: {str(e)}")
+                continue
+        
+        return all_backends
+        
+    except Exception as e:
+        # Fall back to default instance if there's an error getting all instances
+        print(f"Error getting instances: {str(e)}, falling back to default")
+        service = QiskitRuntimeService(channel="ibm_quantum", token=st.session_state.ibm_quantum_token)
+        return service.backends()
 
 def create_and_run_circuit():
     """Create and run a quantum circuit on IBM Quantum backends"""
@@ -168,15 +209,53 @@ def create_and_run_circuit():
     
     # Backend selection
     try:
+        # Get service instance
         service = QiskitRuntimeService(channel="ibm_quantum", token=st.session_state.ibm_quantum_token)
-        backends = service.backends()
+        
+        # Get all available backends from all datacenters
+        backends = get_ibm_backends()
+        
+        # Get all instances/datacenters
+        if "ibm_quantum_instances" in st.session_state:
+            instances = st.session_state.ibm_quantum_instances
+            
+            # Create a dropdown to filter by datacenter
+            datacenter_options = ["All Datacenters"] + list(instances)
+            selected_datacenter = st.selectbox(
+                "Filter by Datacenter/Region", 
+                options=datacenter_options,
+                help="Select a specific datacenter or region to filter available quantum systems"
+            )
+            
+            # Filter backends by selected datacenter if not "All Datacenters"
+            if selected_datacenter != "All Datacenters":
+                backends = [b for b in backends if hasattr(b, "_instance") and b._instance == selected_datacenter]
         
         # Filter backends that can handle this circuit
         compatible_backends = [backend for backend in backends if backend.configuration().n_qubits >= num_qubits]
         
         if compatible_backends:
-            backend_names = [backend.name for backend in compatible_backends]
-            selected_backend = st.selectbox("Select Backend", backend_names)
+            # Format backend names to include datacenter info
+            backend_options = []
+            for backend in compatible_backends:
+                datacenter = getattr(backend, "_instance", "Default")
+                n_qubits = backend.configuration().n_qubits
+                is_simulator = backend.configuration().simulator
+                
+                # Create formatted display name
+                backend_type = "Simulator" if is_simulator else "QPU"
+                display_name = f"{backend.name} ({datacenter}, {n_qubits} qubits, {backend_type})"
+                backend_options.append((backend.name, display_name))
+            
+            # Use the formatted display names for the selectbox
+            selected_display = st.selectbox(
+                "Select Backend", 
+                options=[display for _, display in backend_options],
+                help="Choose a quantum system to run your circuit"
+            )
+            
+            # Map back to the actual backend name
+            selected_backend = next(name for name, display in backend_options if display == selected_display)
             
             # Number of shots
             shots = st.slider("Number of Shots", 1, 10000, 1024)
@@ -188,11 +267,30 @@ def create_and_run_circuit():
             if st.button("Run on IBM Quantum"):
                 with st.spinner(f"Running circuit on {selected_backend}..."):
                     try:
-                        # Get the backend instance
-                        backend_instance = service.backend(selected_backend)
+                        # Get the selected backend from our compatible_backends list to know its instance/datacenter
+                        selected_backend_obj = next((b for b in compatible_backends if b.name == selected_backend), None)
                         
                         # Determine if simulator or real hardware
-                        is_simulator = backend_instance.configuration().simulator
+                        is_simulator = selected_backend_obj.configuration().simulator
+                        
+                        # Get the instance/datacenter this backend belongs to
+                        instance = getattr(selected_backend_obj, "_instance", None)
+                        
+                        # Initialize service with the correct instance if available
+                        if instance:
+                            service = QiskitRuntimeService(
+                                channel="ibm_quantum", 
+                                token=st.session_state.ibm_quantum_token,
+                                instance=instance
+                            )
+                        else:
+                            service = QiskitRuntimeService(
+                                channel="ibm_quantum", 
+                                token=st.session_state.ibm_quantum_token
+                            )
+                        
+                        # Get the backend instance from the correct service
+                        backend_instance = service.backend(selected_backend)
                         
                         # Use the Sampler primitive for all backends
                         from qiskit_ibm_runtime import Sampler, Options

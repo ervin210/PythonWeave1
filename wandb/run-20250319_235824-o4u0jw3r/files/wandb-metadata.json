@@ -1,0 +1,31 @@
+{
+  "os": "Linux-6.2.16-x86_64-with-glibc2.40",
+  "python": "CPython 3.11.10",
+  "startedAt": "2025-03-19T23:58:25.213820Z",
+  "program": "/home/runner/workspace/app.py",
+  "codePath": "app.py",
+  "git": {
+    "remote": "https://github.com/ervin210/PythonWeave1",
+    "commit": "bfded32030eb67ab54929685afc7e70752b1ce34"
+  },
+  "email": "radosavlevici.ervin@gmail.com",
+  "root": "/home/runner/workspace",
+  "host": "7fbc141eae65",
+  "executable": "/nix/store/wqhkxzzlaswkj3gimqign99sshvllcg6-python-wrapped-0.1.0/bin/python3",
+  "codePathLocal": "app.py",
+  "cpu_count": 4,
+  "cpu_count_logical": 8,
+  "disk": {
+    "/": {
+      "total": "52745244672",
+      "used": "22334382080"
+    }
+  },
+  "memory": {
+    "total": "67436740608"
+  },
+  "cpu": {
+    "count": 4,
+    "countLogical": 8
+  }
+}
